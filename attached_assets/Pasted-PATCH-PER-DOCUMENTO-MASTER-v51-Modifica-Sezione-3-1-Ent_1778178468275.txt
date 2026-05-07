@@ -1,0 +1,21 @@
+PATCH PER DOCUMENTO MASTER v51. Modifica Sezione 3.1 — Entità profileAggiungere i campi per la scelta del regime INPS:CampoTipoDefaultDescrizionetipo_inpsenumCOMMERCIANTECOMMERCIANTE (include Artigiani) o GESTIONE_SEPARATAinps_aliquota_gsnumeric0.2607Aliquota per Gestione Separata (~26,07%). Ignorata se COMMERCIANTE.2. Modifica Sezione 4.3 — Algoritmo riferimento (TypeScript)Sostituire il calcolo dell'INPS con questo blocco, che risolve il bug dell'accantonamento a zero incassi e gestisce i due regimi:TypeScript    const tasse_mese = imponibile_mese * profile.aliquota_imposta;
+
+    let inps_fisso_mese = 0;
+    let inps_eccedenza_mese = 0;
+
+    if (profile.tipo_inps === 'COMMERCIANTE') {
+      // FIX: L'INPS fisso è un debito maturato sempre, a prescindere dagli incassi del mese
+      inps_fisso_mese = profile.inps_fisso_mensile;
+      
+      // Calcolo eccedenza differenziale
+      const eccedenza_corrente = Math.max(0, imponibile_ytd - profile.inps_minimale_annuo);
+      const eccedenza_precedente = Math.max(0, imponibile_ytd_precedente - profile.inps_minimale_annuo);
+      inps_eccedenza_mese = (eccedenza_corrente - eccedenza_precedente) * profile.inps_aliquota_eccedenza;
+      
+    } else if (profile.tipo_inps === 'GESTIONE_SEPARATA') {
+      // Regola GS: nessun fisso, percentuale secca sull'imponibile del mese
+      inps_eccedenza_mese = imponibile_mese * profile.inps_aliquota_gs;
+    }
+
+    const zavorra_fiscale_mese = tasse_mese + inps_fisso_mese + inps_eccedenza_mese;
+3. Modifica Sezione 5.1 e 5.4 — Formule FoglioSETUP: Aggiungere cella B6 (Menu: COMMERCIANTE / GESTIONE_SEPARATA) e B7 (Aliquota G.S., es. 26,07%).Fogli MESE (Zavorra Fiscale K10): Biforcare la formula.=SE(SETUP!$B$6="COMMERCIANTE"; SOMMA(F4:F35) + SETUP!$inps_fisso_mensile + DASHBOARD!E_inps_eccedenza_mese; SOMMA(F4:F35) + (SOMMA(E4:E35)*SETUP!$B$7))(Il Tax Safe andrà correttamente in negativo se incassi 0 ma devi comunque pagare l'INPS fisso).4. Sostituzione Completa Sezione 8 — UX E SCHERMATE (Stile Revolut)
