@@ -1,0 +1,638 @@
+// TANGERINE SHEETS v4.0
+// Per attivare: Estensioni > Apps Script > Esegui buildTangerine
+
+// ─── PALETTE ────────────────────────────────────────────────
+const UI = {
+  accent:      "#FF5C00",
+  black:       "#000000",
+  white:       "#FFFFFF",
+  lightGray:   "#F5F5F5",
+  midGray:     "#CCCCCC",
+  lordo:       "#2ECC71",
+  tasse:       "#E74C3C",
+  inps:        "#E67E22",
+  netto:       "#3498DB",
+  svago:       "#F1C40F",
+  viola:       "#9B59B2",
+  safe:        "#1ABC9C",
+  programmato: "#BDC3C7",
+  warn:        "#F39C12",
+};
+
+const MESI = [
+  "GENNAIO","FEBBRAIO","MARZO","APRILE","MAGGIO","GIUGNO",
+  "LUGLIO","AGOSTO","SETTEMBRE","OTTOBRE","NOVEMBRE","DICEMBRE"
+];
+
+// ─── UTILITY ────────────────────────────────────────────────
+function hdr(sheet, row, col_, text, bg, fg) {
+  fg = fg || UI.white;
+  if (!sheet) return;
+  sheet.getRange(row, col_).setValue(text)
+    .setBackground(bg).setFontColor(fg)
+    .setFontWeight("bold").setHorizontalAlignment("center")
+    .setFontFamily("Arial").setFontSize(10);
+}
+
+function base(sheet) {
+  if (!sheet) {
+    SpreadsheetApp.getUi().alert("ERRORE: sheet undefined in base()");
+    throw new Error("sheet undefined in base()");
+  }
+  sheet.getRange(1, 1, 130, 14).setBackground(UI.white).setFontFamily("Arial").setFontSize(10);
+  sheet.setTabColor(UI.accent);
+  sheet.setColumnWidth(1, 30);
+}
+
+function sectionBar(sheet, row, startCol, endCol, text, bg) {
+  const range = sheet.getRange(row, startCol, 1, endCol - startCol + 1);
+  range.merge().setValue(text)
+    .setBackground(bg).setFontColor(UI.white)
+    .setFontWeight("bold").setFontFamily("Arial").setFontSize(11)
+    .setHorizontalAlignment("left");
+}
+
+function thickBorder(range) {
+  range.setBorder(true, true, true, true, null, null,
+    UI.black, SpreadsheetApp.BorderStyle.SOLID_MEDIUM);
+}
+
+function thinBorder(range) {
+  range.setBorder(true, true, true, true, true, true,
+    UI.midGray, SpreadsheetApp.BorderStyle.SOLID);
+}
+
+function getOrCreateSheet(ss, name) {
+  var sh = ss.getSheetByName(name);
+  if (!sh) {
+    sh = ss.insertSheet(name);
+    SpreadsheetApp.flush();
+  }
+  return sh;
+}
+
+// ─── SETUP ──────────────────────────────────────────────────
+function buildSetup(ss) {
+  var sh = getOrCreateSheet(ss, "SETUP");
+  if (!sh) { Logger.log("ERRORE: impossibile creare foglio SETUP"); return; }
+  base(sh);
+  sh.clear();
+  sh.setTabColor(UI.safe);
+
+  sh.getRange("B1").setValue("TANGERINE SHEETS — SETUP FISCALE")
+    .setFontSize(14).setFontWeight("bold").setFontColor(UI.accent);
+
+  // Variabili fiscali B:C
+  sectionBar(sh, 3, 2, 3, "VARIABILI FISCALI", UI.black);
+  const fiscali = [
+    ["Coefficiente Redditivita",  0.78],
+    ["Aliquota Tasse",            0.05],
+    ["Minimale INPS Annuo",       18808.00],
+    ["INPS Fisso Mensile",        376.78],
+    ["Aliquota INPS Eccedenza",   0.24],
+  ];
+  fiscali.forEach(function(row, i) {
+    var r = i + 4;
+    sh.getRange(r, 2).setValue(row[0]).setFontWeight("bold");
+    sh.getRange(r, 3).setValue(row[1])
+      .setBackground(UI.lightGray).setHorizontalAlignment("center")
+      .setFontWeight("bold").setFontColor(UI.accent);
+  });
+  sh.getRange(4, 3).setNumberFormat("0.00%");
+  sh.getRange(5, 3).setNumberFormat("0.00%");
+  sh.getRange(6, 3).setNumberFormat("#,##0.00");
+  sh.getRange(7, 3).setNumberFormat("#,##0.00");
+  sh.getRange(8, 3).setNumberFormat("0.00%");
+  thickBorder(sh.getRange(3, 2, 6, 2));
+  sh.setColumnWidth(2, 220);
+  sh.setColumnWidth(3, 130);
+
+  // ListaCategorie col E
+  sectionBar(sh, 3, 5, 5, "CATEGORIE SPESA", UI.black);
+  ["BUSINESS","AUTO","VITA","SVAGO","INVESTIMENTO","FORMAZIONE","SALUTE"].forEach(function(c, i) {
+    sh.getRange(i + 4, 5).setValue(c);
+  });
+  thickBorder(sh.getRange(3, 5, 8, 1));
+  sh.setColumnWidth(5, 160);
+
+  // ListaSecchielli col G
+  sectionBar(sh, 3, 7, 7, "SECCHIELLI", UI.viola);
+  ["FONDO EMERGENZA","PENSIONE","VACANZE","FORMAZIONE","INVESTIMENTO PAC","ALTRO"].forEach(function(s, i) {
+    sh.getRange(i + 4, 7).setValue(s);
+  });
+  thickBorder(sh.getRange(3, 7, 7, 1));
+  sh.setColumnWidth(7, 180);
+
+  // ListaStato col I — v4: aggiunto PROGRAMMATO
+  sectionBar(sh, 3, 9, 9, "STATO FATTURA", UI.black);
+  ["PAGATO","DA PAGARE","PROGRAMMATO"].forEach(function(s, i) {
+    sh.getRange(i + 4, 9).setValue(s);
+  });
+  thickBorder(sh.getRange(3, 9, 4, 1));
+  sh.setColumnWidth(9, 160);
+
+  // ListaTipoSpesa col K
+  sectionBar(sh, 3, 11, 11, "TIPO SPESA", UI.inps);
+  ["EFFETTIVA","PROGRAMMATA"].forEach(function(s, i) {
+    sh.getRange(i + 4, 11).setValue(s);
+  });
+  thickBorder(sh.getRange(3, 11, 3, 1));
+  sh.setColumnWidth(11, 140);
+
+  // Named ranges
+  ss.setNamedRange("ListaCategorie", sh.getRange("E4:E10"));
+  ss.setNamedRange("ListaSecchielli", sh.getRange("G4:G20"));
+  ss.setNamedRange("ListaStato",      sh.getRange("I4:I6"));
+  ss.setNamedRange("ListaTipoSpesa",  sh.getRange("K4:K5"));
+
+  sh.setFrozenRows(3);
+}
+
+// ─── FOGLIO MESE ─────────────────────────────────────────────
+function buildMese(ss, nomeMese) {
+  var sh = getOrCreateSheet(ss, nomeMese);
+  if (!sh) { Logger.log("ERRORE: impossibile creare foglio " + nomeMese); return; }
+  base(sh);
+  sh.clear();
+
+  sh.setColumnWidth(2, 160);
+  sh.setColumnWidth(3, 100);
+  sh.setColumnWidth(4, 100);
+  sh.setColumnWidth(5, 120);
+  sh.setColumnWidth(6, 90);
+  sh.setColumnWidth(7, 90);
+  sh.setColumnWidth(8, 100);
+  sh.setColumnWidth(9, 30);
+  sh.setColumnWidth(10, 200);
+  sh.setColumnWidth(11, 120);
+
+  sh.getRange("B1").setValue(nomeMese + " 2026")
+    .setFontSize(16).setFontWeight("bold").setFontColor(UI.accent);
+
+  // ── BLOCCO A1 — Fatture P.IVA (righe 3–35) ──
+  sh.getRange(3, 2, 1, 7)
+    .setValues([["CLIENTE","LORDO","NETTO","STATO","TASSE","INPS","NETTO REALE"]])
+    .setBackground(UI.black).setFontColor(UI.white).setFontWeight("bold")
+    .setHorizontalAlignment("center");
+
+  var statoRule = SpreadsheetApp.newDataValidation()
+    .requireValueInRange(ss.getSheetByName("SETUP").getRange("I4:I6"), true).build();
+  sh.getRange(4, 5, 32, 1).setDataValidation(statoRule);
+
+  // Formule righe 4–35
+  for (var r = 4; r <= 35; r++) {
+    // F: Tasse
+    sh.getRange(r, 6).setFormula(
+      "=SE(E" + r + "=\"PAGATO\";C" + r + "*SETUP!$C$4*SETUP!$C$5;0)"
+    );
+    // G: INPS fisso — solo prima fattura PAGATO
+    sh.getRange(r, 7).setFormula(
+      "=SE(E" + r + "=\"PAGATO\";SE(CONTA.SE($E$4:E" + r + ";\"PAGATO\")=1;SETUP!$C$7;0);0)"
+    );
+    // D: Netto visibile
+    sh.getRange(r, 4).setFormula(
+      "=SE(E" + r + "=\"PAGATO\";C" + r + "-F" + r + "-G" + r + ";0)"
+    );
+    // H: Netto Reale riga
+    sh.getRange(r, 8).setFormula(
+      "=SE(E" + r + "=\"PAGATO\";C" + r + "-F" + r + "-G" + r + ";0)"
+    );
+    sh.getRange(r, 3).setNumberFormat("€ #,##0.00");
+    sh.getRange(r, 4, 1, 5).setNumberFormat("€ #,##0.00");
+  }
+
+  thickBorder(sh.getRange(3, 2, 33, 7));
+  sh.getRange(3, 4).setNote("Netto immediato: Lordo - Tasse - INPS.\nVisibile solo se PAGATO. Mostra 0 se DA PAGARE o PROGRAMMATO.");
+  sh.getRange(3, 6).setNote("Tasse = Lordo x Coefficiente x Aliquota.\nSolo se PAGATO (Principio di Cassa).");
+  sh.getRange(3, 7).setNote("INPS fisso mensile addebitato SOLO sulla prima fattura PAGATO del mese.");
+
+  // ── BLOCCO A2 — Entrate Nette (righe 37–49) ──
+  sh.getRange(37, 2, 1, 3)
+    .setValues([["VOCE","IMPORTO NETTO","NOTE"]])
+    .setBackground(UI.netto).setFontColor(UI.white).setFontWeight("bold")
+    .setHorizontalAlignment("center");
+  sh.getRange(38, 3, 11, 1).setNumberFormat("€ #,##0.00");
+  thinBorder(sh.getRange(37, 2, 12, 3));
+  sh.getRange(49, 2).setValue("TOTALE ENTRATE NETTE").setFontWeight("bold");
+  sh.getRange(49, 3).setFormula("=SOMMA(C38:C48)")
+    .setBackground(UI.netto).setFontColor(UI.white).setFontWeight("bold")
+    .setNumberFormat("€ #,##0.00");
+
+  // ── BLOCCO B — Uscite (righe 51–87) ──
+  sh.getRange(51, 2, 1, 5)
+    .setValues([["CATEGORIA","IMPORTO","DATA","TIPO","NOTE"]])
+    .setBackground(UI.tasse).setFontColor(UI.white).setFontWeight("bold")
+    .setHorizontalAlignment("center");
+
+  var catRule = SpreadsheetApp.newDataValidation()
+    .requireValueInRange(ss.getSheetByName("SETUP").getRange("E4:E10"), true).build();
+  sh.getRange(52, 2, 34, 1).setDataValidation(catRule);
+
+  var tipoRule = SpreadsheetApp.newDataValidation()
+    .requireValueInRange(ss.getSheetByName("SETUP").getRange("K4:K5"), true).build();
+  sh.getRange(52, 5, 34, 1).setDataValidation(tipoRule);
+
+  sh.getRange(52, 3, 34, 1).setNumberFormat("€ #,##0.00");
+  sh.getRange(52, 4, 34, 1).setNumberFormat("dd/mm/yyyy");
+  thinBorder(sh.getRange(51, 2, 35, 5));
+
+  sh.getRange(86, 2).setValue("TOTALE USCITE EFFETTIVE").setFontWeight("bold");
+  sh.getRange(86, 3).setFormula("=SOMMA.SE(E52:E85;\"EFFETTIVA\";C52:C85)")
+    .setBackground(UI.tasse).setFontColor(UI.white).setFontWeight("bold")
+    .setNumberFormat("€ #,##0.00");
+
+  sh.getRange(87, 2).setValue("TOTALE SPESE PROGRAMMATE").setFontWeight("bold");
+  sh.getRange(87, 3).setFormula("=SOMMA.SE(E52:E85;\"PROGRAMMATA\";C52:C85)")
+    .setBackground(UI.programmato).setFontColor(UI.black).setFontWeight("bold")
+    .setNumberFormat("€ #,##0.00");
+
+  // ── BLOCCO C — Dashboard Mese (col J, righe 3–22) ──
+  sectionBar(sh, 3, 10, 11, "RIEPILOGO MESE", UI.black);
+
+  var dashRows = [
+    [4,  "Fatturato Incassato",    "=SOMMA.SE(E4:E35;\"PAGATO\";C4:C35)",      UI.lordo,      "Somma PAGATO. Principio di Cassa: DA PAGARE e PROGRAMMATO non contano."],
+    [5,  "Da Incassare",           "=SOMMA.SE(E4:E35;\"DA PAGARE\";C4:C35)",   UI.warn,       "Fatture emesse, in attesa di pagamento."],
+    [6,  "Pipeline Programmata",   "=SOMMA.SE(E4:E35;\"PROGRAMMATO\";C4:C35)", UI.programmato,"Contratti firmati, fatture non ancora emesse."],
+    [7,  "Entrate Nette Pure",     "=C49",                                      UI.netto,      "Entrate esentasse (Blocco A2). Non generano tasse ne INPS."],
+    [8,  "Spese Effettive",        "=C86",                                      UI.tasse,      "Uscite effettive del mese."],
+    [9,  "Spese Programmate",      "=C87",                                      UI.programmato,"Spese pianificate non ancora sostenute."],
+    [10, "Zavorra Fiscale",        "=SOMMA(F4:F35)+SOMMA(G4:G35)",              UI.tasse,      "Tasse stimate + INPS. Solo su PAGATO."],
+    [11, "Netto Reale Mensile",    "=(K4-K10)+K7-K8",                           UI.netto,      "(Incassato - Zavorra) + Entrate Nette - Spese Effettive."],
+    [12, "Totale Secchielli",      "=SOMMA(K18:K30)",                           UI.viola,      "Totale allocato agli obiettivi di risparmio."],
+    [13, "Netto Rimanente",        "=K11-K12",                                  UI.safe,       "Netto dopo i secchielli. Idealmente = 0."],
+    [14, "Imponibile Mese",        "=K4*SETUP!$C$4",                            UI.lightGray,  "Incassato x Coefficiente (0.78). Base per tasse e INPS eccedenza."],
+    [15, "Saving Rate",            "=IFERROR(K12/K4;0)",                        UI.lightGray,  "Secchielli / Incassato. Obiettivo: > 20%."],
+    [16, "TAX SAFE",               "=K13-K10",                                  UI.safe,       "SOLDI DAVVERO LIBERI: Netto Rimanente - Zavorra.\nSe negativo: buffer tasse insufficiente."],
+    [17, "STATO MESE",             "=SE(K15>=0.2;\"MESE SANO\";SE(K15>=0.1;\"ATTENZIONE\";SE(K16<0;\"TASSE A RISCHIO\";\"SAVING BASSO\")))", UI.black, "Verde >= 20% | Giallo 10-20% | Rosso < 10% o Tax Safe negativo"],
+  ];
+
+  dashRows.forEach(function(item) {
+    var r = item[0], lbl = item[1], formula = item[2], bg = item[3], nota = item[4];
+    sh.getRange(r, 10).setValue(lbl).setFontWeight("bold").setFontFamily("Arial").setFontSize(10);
+    var cell = sh.getRange(r, 11);
+    cell.setFormula(formula)
+      .setBackground(bg)
+      .setFontColor(bg === UI.lightGray || bg === UI.programmato ? UI.black : UI.white)
+      .setFontWeight("bold").setHorizontalAlignment("right")
+      .setFontFamily("Arial").setFontSize(10);
+    if (nota) cell.setNote(nota);
+  });
+
+  sh.getRange(4, 11, 13, 1).setNumberFormat("€ #,##0.00");
+  sh.getRange(15, 11).setNumberFormat("0.0%");
+  thickBorder(sh.getRange(3, 10, 15, 2));
+
+  // Formattazione condizionale
+  var rules = sh.getConditionalFormatRules();
+  var srCell = sh.getRange("K15");
+  var taxCell = sh.getRange("K16");
+
+  rules.push(SpreadsheetApp.newConditionalFormatRule()
+    .whenNumberLessThan(0.1).setBackground("#E74C3C").setFontColor(UI.white)
+    .setRanges([srCell]).build());
+  rules.push(SpreadsheetApp.newConditionalFormatRule()
+    .whenNumberBetween(0.1, 0.199).setBackground("#F39C12").setFontColor(UI.white)
+    .setRanges([srCell]).build());
+  rules.push(SpreadsheetApp.newConditionalFormatRule()
+    .whenNumberGreaterThanOrEqualTo(0.2).setBackground("#2ECC71").setFontColor(UI.white)
+    .setRanges([srCell]).build());
+  rules.push(SpreadsheetApp.newConditionalFormatRule()
+    .whenNumberLessThan(0).setBackground("#E74C3C").setFontColor(UI.white)
+    .setRanges([taxCell]).build());
+
+  sh.setConditionalFormatRules(rules);
+
+  // ── BLOCCO D — Secchielli (col J:K, righe 18–30) ──
+  sh.getRange(18, 10, 1, 3)
+    .setValues([["OBIETTIVO","IMPORTO","DESCRIZIONE"]])
+    .setBackground(UI.viola).setFontColor(UI.white).setFontWeight("bold")
+    .setHorizontalAlignment("center");
+  sh.setColumnWidth(12, 200);
+
+  var secchRule = SpreadsheetApp.newDataValidation()
+    .requireValueInRange(ss.getSheetByName("SETUP").getRange("G4:G20"), true).build();
+  sh.getRange(19, 10, 12, 1).setDataValidation(secchRule);
+  sh.getRange(19, 11, 12, 1).setNumberFormat("€ #,##0.00");
+  thinBorder(sh.getRange(18, 10, 13, 3));
+
+  sh.setFrozenRows(3);
+  return sh;
+}
+
+// ─── FOGLIO CLIENTI ──────────────────────────────────────────
+function buildClienti(ss) {
+  var sh = getOrCreateSheet(ss, "CLIENTI");
+  if (!sh) { Logger.log("ERRORE: impossibile creare foglio CLIENTI"); return; }
+  base(sh);
+  sh.clear();
+  sh.setTabColor("#1A5276");
+
+  sh.getRange("B1").setValue("TRACKING CLIENTI — YTD 2026")
+    .setFontSize(14).setFontWeight("bold").setFontColor(UI.accent);
+
+  var hdrs = ["CLIENTE","FATTURATO YTD","N. FATTURE","MEDIA/FATTURA","% TOTALE","ULTIMO MESE ATTIVO"];
+  for (var hi = 0; hi < hdrs.length; hi++) {
+    sh.getRange(3, hi + 2).setValue(hdrs[hi])
+      .setBackground(UI.black).setFontColor(UI.white)
+      .setFontWeight("bold").setHorizontalAlignment("center")
+      .setFontFamily("Arial").setFontSize(10);
+  }
+  [200,130,100,120,100,140].forEach(function(w, i) { sh.setColumnWidth(i + 2, w); });
+
+  // Totale YTD in H3 (referenziato dalla % totale)
+  sh.getRange(3, 8).setValue("TOTALE YTD").setFontWeight("bold");
+  var totParts = MESI.map(function(m) {
+    return "SOMMA.SE(" + m + "!$E$4:$E$35;\"PAGATO\";" + m + "!$C$4:$C$35)";
+  }).join("+");
+  sh.getRange(4, 8).setFormula("=" + totParts)
+    .setNumberFormat("€ #,##0.00").setFontWeight("bold")
+    .setBackground(UI.lordo).setFontColor(UI.white);
+  sh.getRange("H3").setFormula("=H4");
+
+  // 20 righe cliente
+  for (var r = 4; r <= 23; r++) {
+    var ytdParts = MESI.map(function(m) {
+      return "SOMMA.PIU.SE(" + m + "!$C$4:$C$35;" + m + "!$E$4:$E$35;\"PAGATO\";" + m + "!$B$4:$B$35;$B" + r + ")";
+    }).join("+");
+    sh.getRange(r, 3).setFormula("=" + ytdParts).setNumberFormat("€ #,##0.00");
+
+    var nParts = MESI.map(function(m) {
+      return "CONTA.PIU.SE(" + m + "!$E$4:$E$35;\"PAGATO\";" + m + "!$B$4:$B$35;$B" + r + ")";
+    }).join("+");
+    sh.getRange(r, 4).setFormula("=" + nParts);
+    sh.getRange(r, 5).setFormula("=IFERROR(C" + r + "/D" + r + ";0)").setNumberFormat("€ #,##0.00");
+    sh.getRange(r, 6).setFormula("=IFERROR(C" + r + "/H3;0)").setNumberFormat("0.0%");
+    sh.getRange(r, 7).setValue("inserire manuale").setFontColor("#AAAAAA").setItalic(true);
+
+    if ((r - 4) % 2 === 0) sh.getRange(r, 2, 1, 6).setBackground("#F0F8FF");
+  }
+  thickBorder(sh.getRange(3, 2, 21, 6));
+
+  // KPI
+  sectionBar(sh, 26, 2, 4, "KPI CLIENTI", UI.black);
+  sh.getRange(27, 2).setValue("Cliente Top Anno").setFontWeight("bold");
+  sh.getRange(27, 3).setFormula("=IFERROR(INDICE(B4:B23;CONFRONTA(MAX(C4:C23);C4:C23;0));\"—\")")
+    .setBackground(UI.lordo).setFontColor(UI.white).setFontWeight("bold");
+
+  sh.getRange(28, 2).setValue("Dipendenza % cliente principale").setFontWeight("bold");
+  sh.getRange(28, 3).setFormula("=IFERROR(MAX(F4:F23);0)").setNumberFormat("0.0%")
+    .setBackground(UI.warn).setFontColor(UI.white).setFontWeight("bold")
+    .setNote("Se > 50%: dipendenza pericolosa. Diversifica il portafoglio clienti.");
+
+  sh.getRange(29, 2).setValue("N. Clienti Attivi").setFontWeight("bold");
+  sh.getRange(29, 3).setFormula("=CONTA.SE(C4:C23;\">0\")");
+
+  thickBorder(sh.getRange(26, 2, 4, 3));
+  sh.setFrozenRows(3);
+}
+
+// ─── DASHBOARD ───────────────────────────────────────────────
+function buildDashboard(ss) {
+  var sh = getOrCreateSheet(ss, "DASHBOARD");
+  if (!sh) { Logger.log("ERRORE: impossibile creare foglio DASHBOARD"); return; }
+  base(sh);
+  sh.clear();
+  sh.setTabColor(UI.accent);
+
+  sh.getRange("B1").setValue("TANGERINE SHEETS — DASHBOARD 2026")
+    .setFontSize(16).setFontWeight("bold").setFontColor(UI.accent);
+  sh.getRange("K1").setFormula("=OGGI()").setNumberFormat("dd/mm/yyyy")
+    .setHorizontalAlignment("right").setFontColor(UI.midGray);
+
+  sh.setColumnWidth(2, 220);
+  sh.setColumnWidth(3, 140);
+
+  // ── SEZ 1 — Monitoraggio Entrate (righe 3–9) ──
+  sectionBar(sh, 3, 2, 3, "MONITORAGGIO ENTRATE", UI.black);
+
+  var sumInc   = MESI.map(function(m) { return m + "!K4"; }).join(";");
+  var sumDaPag = MESI.map(function(m) { return m + "!K5"; }).join(";");
+  var sumProg  = MESI.map(function(m) { return m + "!K6"; }).join(";");
+
+  var sezione1 = [
+    [4, "Contrattualizzato Totale", "=SOMMA(" + sumInc + ")+SOMMA(" + sumDaPag + ")+SOMMA(" + sumProg + ")", UI.black,       "Tutto il lavoro: incassato + da pagare + programmato."],
+    [5, "Incassato ad Oggi",        "=SOMMA(" + sumInc + ")",                                                  UI.lordo,      "Solo fatture PAGATO da tutti i 12 mesi."],
+    [6, "Crediti In Attesa",        "=SOMMA(" + sumDaPag + ")",                                                UI.warn,       "Fatture emesse, in attesa di pagamento."],
+    [7, "Pipeline Programmata",     "=SOMMA(" + sumProg + ")",                                                 UI.programmato,"Contratti firmati, fatture non emesse."],
+    [8, "Gap Contrattualizzato",    "=B4-B5",                                                                  UI.tasse,      "Quanto manca da incassare rispetto al contrattualizzato totale."],
+  ];
+
+  sezione1.forEach(function(item) {
+    var r = item[0], lbl = item[1], formula = item[2], bg = item[3], nota = item[4];
+    sh.getRange(r, 2).setValue(lbl).setFontWeight("bold");
+    sh.getRange(r, 3).setFormula(formula)
+      .setBackground(bg)
+      .setFontColor(bg === UI.programmato ? UI.black : UI.white)
+      .setFontWeight("bold").setNumberFormat("€ #,##0.00");
+    if (nota) sh.getRange(r, 3).setNote(nota);
+  });
+  thickBorder(sh.getRange(3, 2, 6, 2));
+
+  // ── SEZ 2 — Cruscotto Fiscale (righe 12–25) ──
+  sectionBar(sh, 12, 2, 7, "CRUSCOTTO FISCALE", UI.black);
+  var hdr2 = ["MESE","INCASSATO","IMPONIBILE YTD","INPS ECCEDENZA","TASSE STIMATE","NETTO REALE"];
+  for (var hi = 0; hi < hdr2.length; hi++) {
+    sh.getRange(12, hi + 2).setValue(hdr2[hi])
+      .setBackground(UI.black).setFontColor(UI.white)
+      .setFontWeight("bold").setHorizontalAlignment("center")
+      .setFontFamily("Arial").setFontSize(10);
+  }
+  [120,120,130,130,120,120].forEach(function(w, i) { sh.setColumnWidth(i + 2, w); });
+
+  MESI.forEach(function(m, i) {
+    var r = i + 13;
+    sh.getRange(r, 2).setValue(m).setFontWeight("bold");
+    sh.getRange(r, 3).setFormula("=" + m + "!K4").setNumberFormat("€ #,##0.00");
+    // Imponibile cumulato YTD
+    sh.getRange(r, 4).setFormula("=SOMMA($C$13:C" + r + ")*SETUP!$C$4").setNumberFormat("€ #,##0.00");
+    // INPS Eccedenza differenziale
+    var prevD = r > 13 ? "D" + (r - 1) : "0";
+    sh.getRange(r, 5).setFormula(
+      "=MAX(0;(MIN(D" + r + ";999999)-MAX(SETUP!$C$6;IFERROR(" + prevD + ";0)))*SETUP!$C$8)"
+    ).setNumberFormat("€ #,##0.00");
+    // Tasse stimate mese
+    sh.getRange(r, 6).setFormula("=" + m + "!K10").setNumberFormat("€ #,##0.00");
+    // Netto Reale mese
+    sh.getRange(r, 7).setFormula("=" + m + "!K11").setNumberFormat("€ #,##0.00");
+
+    if (i % 2 === 0) sh.getRange(r, 2, 1, 6).setBackground("#FFF8F4");
+  });
+  thickBorder(sh.getRange(12, 2, 14, 6));
+
+  // ── SEZ 3 — Secchielli (righe 28–42) ──
+  sectionBar(sh, 28, 2, 4, "SECCHIELLI — TOTALE ACCANTONATO", UI.viola);
+  sh.getRange(28, 2).setValue("OBIETTIVO").setBackground(UI.viola).setFontColor(UI.white).setFontWeight("bold").setHorizontalAlignment("center").setFontFamily("Arial").setFontSize(10);
+  sh.getRange(28, 3).setValue("TOTALE ACCANTONATO").setBackground(UI.viola).setFontColor(UI.white).setFontWeight("bold").setHorizontalAlignment("center").setFontFamily("Arial").setFontSize(10);
+  sh.getRange(28, 4).setValue("TARGET (opzionale)").setBackground(UI.viola).setFontColor(UI.white).setFontWeight("bold").setHorizontalAlignment("center").setFontFamily("Arial").setFontSize(10);
+  sh.setColumnWidth(4, 140);
+
+  for (var r = 29; r <= 41; r++) {
+    var setupRow = r - 29 + 4;
+    sh.getRange(r, 2).setFormula("=IFERROR(SETUP!$G$" + setupRow + ";\"\")");
+
+    var parts = MESI.map(function(m) {
+      return "SOMMA.PIU.SE(" + m + "!$K$19:$K$30;" + m + "!$J$19:$J$30;B" + r + ")";
+    }).join("+");
+    sh.getRange(r, 3).setFormula("=SE(B" + r + "<>\"\";" + parts + ";\"\")")
+      .setNumberFormat("€ #,##0.00");
+    sh.getRange(r, 4).setNumberFormat("€ #,##0.00");
+
+    if ((r - 29) % 2 === 0) sh.getRange(r, 2, 1, 3).setBackground("#F5F0FF");
+  }
+
+  sh.getRange(42, 2).setValue("TOTALE GENERALE ACCANTONAMENTI").setFontWeight("bold");
+  sh.getRange(42, 3).setFormula("=SOMMA(C29:C41)")
+    .setFontWeight("bold").setBackground(UI.viola).setFontColor(UI.white)
+    .setNumberFormat("€ #,##0.00");
+  thickBorder(sh.getRange(28, 2, 15, 3));
+
+  // ── SEZ 4 — Tabella dati grafico (righe 45–58) ──
+  sectionBar(sh, 45, 2, 6, "DATI GRAFICO — Seleziona B46:F58 poi Inserisci > Grafico > Linee", UI.black);
+  var hdr4 = ["MESE","ENTRATE NETTE","USCITE EFFETTIVE","ACCANTONAMENTI","SPESE PROGRAMMATE"];
+  for (var hi = 0; hi < hdr4.length; hi++) {
+    sh.getRange(45, hi + 2).setValue(hdr4[hi])
+      .setBackground(UI.black).setFontColor(UI.white)
+      .setFontWeight("bold").setHorizontalAlignment("center")
+      .setFontFamily("Arial").setFontSize(10);
+  }
+
+  MESI.forEach(function(m, i) {
+    var r = i + 46;
+    sh.getRange(r, 2).setValue(m);
+    sh.getRange(r, 3).setFormula("=" + m + "!K4").setNumberFormat("€ #,##0.00");
+    sh.getRange(r, 4).setFormula("=" + m + "!K8").setNumberFormat("€ #,##0.00");
+    sh.getRange(r, 5).setFormula("=" + m + "!K12").setNumberFormat("€ #,##0.00");
+    sh.getRange(r, 6).setFormula("=" + m + "!K9").setNumberFormat("€ #,##0.00");
+    if (i % 2 === 0) sh.getRange(r, 2, 1, 5).setBackground("#F5F5F5");
+  });
+  thickBorder(sh.getRange(45, 2, 14, 5));
+
+  sh.getRange(60, 2).setValue("ISTRUZIONI GRAFICO:").setFontWeight("bold").setFontColor(UI.accent);
+  [
+    "1. Seleziona B46:F58",
+    "2. Menu: Inserisci > Grafico > Tipo: Grafico a linee",
+    "3. Entrate Nette: #2ECC71 (verde)  |  Uscite: #E74C3C (rosso)  |  Accantonamenti: #3498DB (azzurro)  |  Spese Programmate: #BDC3C7 (grigio)",
+    "4. Titolo: Flussi Mensili 2026",
+  ].forEach(function(t, i) {
+    sh.getRange(61 + i, 2).setValue(t).setFontColor(UI.midGray).setItalic(true);
+  });
+
+  // ── SEZ 5 — KPI Clienti (righe 67–72) ──
+  sectionBar(sh, 67, 2, 4, "KPI CLIENTI", UI.black);
+  [
+    [68, "Cliente Top Anno",                 "=IFERROR(CLIENTI!C27;\"—\")",  UI.lordo],
+    [69, "Dipendenza % cliente principale",  "=IFERROR(CLIENTI!C28;0)",      UI.warn],
+    [70, "N. Clienti Attivi",                "=IFERROR(CLIENTI!C29;0)",      UI.lightGray],
+  ].forEach(function(item) {
+    var r = item[0];
+    sh.getRange(r, 2).setValue(item[1]).setFontWeight("bold");
+    sh.getRange(r, 3).setFormula(item[2])
+      .setBackground(item[3])
+      .setFontColor(item[3] === UI.lightGray ? UI.black : UI.white)
+      .setFontWeight("bold");
+  });
+  sh.getRange(69, 3).setNumberFormat("0.0%");
+  thickBorder(sh.getRange(67, 2, 4, 2));
+
+  // ── SEZ 6 — Crypto Tracker (righe 74–78) ──
+  sectionBar(sh, 74, 2, 8, "CRYPTO TRACKER (prezzi live, ritardo ~15 min)", UI.black);
+  var hdr6 = ["ASSET","QUANTITA","PREZZO MEDIO","PREZZO LIVE","VALORE ATTUALE","P/L EURO","P/L %"];
+  for (var hi = 0; hi < hdr6.length; hi++) {
+    sh.getRange(74, hi + 2).setValue(hdr6[hi])
+      .setBackground(UI.black).setFontColor(UI.white)
+      .setFontWeight("bold").setHorizontalAlignment("center")
+      .setFontFamily("Arial").setFontSize(10);
+  }
+  [["BTC","BTCEUR"],["ETH","ETHEUR"]].forEach(function(item, i) {
+    var r = 75 + i;
+    sh.getRange(r, 2).setValue(item[0]).setFontWeight("bold");
+    sh.getRange(r, 5).setFormula("=GOOGLEFINANCE(\"CURRENCY:" + item[1] + "\")").setNumberFormat("€ #,##0.00");
+    sh.getRange(r, 6).setFormula("=C" + r + "*E" + r).setNumberFormat("€ #,##0.00");
+    sh.getRange(r, 7).setFormula("=F" + r + "-(C" + r + "*D" + r + ")").setNumberFormat("€ #,##0.00");
+    sh.getRange(r, 8).setFormula("=IFERROR((F" + r + "-(C" + r + "*D" + r + "))/(C" + r + "*D" + r + ");0)").setNumberFormat("0.0%");
+    sh.getRange(r, 3, 1, 2).setNumberFormat("€ #,##0.00");
+  });
+  thickBorder(sh.getRange(74, 2, 3, 7));
+
+  sh.setFrozenRows(12);
+}
+
+// ─── ENTRY POINT ─────────────────────────────────────────────
+function buildTangerine() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+
+  // Rimuovi foglio di default "Foglio1" se esiste (Google lo crea automaticamente)
+  var defaultSheet = ss.getSheetByName("Foglio1") || ss.getSheetByName("Sheet1");
+  if (defaultSheet && ss.getSheets().length > 1) {
+    ss.deleteSheet(defaultSheet);
+  } else if (defaultSheet) {
+    // Se e' l'unico foglio, rinominalo temporaneamente
+    defaultSheet.setName("_temp_delete");
+  }
+
+  // 1. SETUP — deve esistere prima dei fogli mese
+  buildSetup(ss);
+  SpreadsheetApp.flush();
+
+  // Elimina foglio temporaneo se era l'unico
+  var tempSheet = ss.getSheetByName("_temp_delete");
+  if (tempSheet) ss.deleteSheet(tempSheet);
+
+  // 2. Template MESE su GENNAIO
+  buildMese(ss, "GENNAIO");
+  SpreadsheetApp.flush();
+
+  // 3. Duplica per gli altri 11 mesi
+  var template = ss.getSheetByName("GENNAIO");
+  MESI.slice(1).forEach(function(m) {
+    var existing = ss.getSheetByName(m);
+    if (existing) ss.deleteSheet(existing);
+    var copy = template.copyTo(ss);
+    copy.setName(m);
+    copy.getRange("B1").setValue(m + " 2026");
+  });
+  SpreadsheetApp.flush();
+
+  // 4. Clienti e Dashboard
+  SpreadsheetApp.flush();
+  buildClienti(ss);
+  SpreadsheetApp.flush();
+  buildDashboard(ss);
+  SpreadsheetApp.flush();
+
+  ss.setActiveSheet(ss.getSheetByName("DASHBOARD"));
+
+  SpreadsheetApp.getUi().alert(
+    "TANGERINE SHEETS v4.0 — PRONTO\n\n" +
+    "PRIMA DI USARE:\n" +
+    "1. Vai su SETUP -> verifica Coefficiente (C4) e Aliquota (C5)\n" +
+    "2. Aggiungi i tuoi secchielli in colonna G del SETUP\n" +
+    "3. Torna su GENNAIO e inizia a inserire le fatture\n\n" +
+    "NOTA: Le formule usano SOMMA.SE e SOMMA.PIU.SE.\n" +
+    "Se vedi #NOME? su un Mac/locale diverso prova SUMIF / SUMIFS."
+  );
+}
+
+// ─── DEBUG — esegui questa PRIMA di buildTangerine ───────────
+function debugSheets() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var log = "FOGLI ESISTENTI:\n";
+  ss.getSheets().forEach(function(s) { log += "  - " + s.getName() + "\n"; });
+
+  log += "\nTEST CREAZIONE:\n";
+
+  var s1 = ss.getSheetByName("SETUP");
+  log += "SETUP esiste: " + (s1 ? "SI" : "NO") + "\n";
+
+  if (!s1) {
+    s1 = ss.insertSheet("SETUP_TEST");
+    SpreadsheetApp.flush();
+    log += "insertSheet SETUP_TEST: " + (s1 ? "OK - " + s1.getName() : "FALLITO") + "\n";
+    if (s1) ss.deleteSheet(s1);
+  }
+
+  var nr = ss.getRangeByName("ListaStato");
+  log += "ListaStato named range: " + (nr ? "OK" : "NULL") + "\n";
+
+  SpreadsheetApp.getUi().alert(log);
+}

@@ -1,0 +1,439 @@
+# TANGERINE SHEETS — LLM MASTERGUIDE v4.0
+**Tipologia:** LLM Masterguide — Prompt di Ingegneria Strutturata  
+**Progetto:** Centro di Controllo Finanziario per Partita IVA Forfettaria  
+**Stack:** Google Apps Script · Google Sheets · GOOGLEFINANCE  
+**Ultimo aggiornamento:** Maggio 2026  
+**Regola globale crediti:** Prima di ogni operazione, valuta se esiste un approccio più economico. Preferisci patch chirurgiche a riscritture complete. Aggiorna questo file ad ogni modifica al progetto invece di rigenerare il .docx.
+
+---
+
+## INDICE
+
+1. Identità LLM
+2. Glossario
+3. Architettura Fogli
+4. Forbidden List
+5. Foglio SETUP
+6. Foglio MESE — Layout e Formule Complete
+7. Note Formule (Tooltip via setNote)
+8. Dashboard Annuale
+9. Error Handbook
+10. Output Format e Workflow
+11. Changelog
+
+---
+
+## 01 — IDENTITÀ LLM
+
+Incolla questo blocco come system prompt o prima sezione di ogni richiesta.
+
+```
+Ruolo: Senior Financial Modeler specializzato in Google Sheets e Consulente Fiscale
+per Partite IVA forfettarie italiane.
+
+Tono: Conciso, tecnico, zero preamboli. NO: "Certamente!", "Ecco il codice",
+"Spero che questo aiuti". Output diretto.
+
+Obiettivo primario: Integrità dei calcoli fiscali sopra ogni scelta estetica.
+Se esiste conflitto tra layout e formula corretta, vince la formula.
+
+Lingua formule: Usa SEMPRE il punto e virgola ; come separatore argomenti
+(locale italiano di Google Sheets).
+
+Riferimento dati: Prima di generare formule fiscali, consulta il GLOSSARIO
+di questo documento. Non usare valori fiscali non referenziati a SETUP!$A$N.
+
+Regola crediti: Esegui operazioni consumando il minor numero di token possibile.
+Preferisci patch chirurgiche a riscritture. Se una modifica tocca meno di 5 celle,
+non riscrivere l'intera funzione.
+```
+
+---
+
+## 02 — GLOSSARIO
+
+Definizioni matematiche precise. In caso di ambiguità, questa sezione ha precedenza su tutto.
+
+| Termine | Definizione e Formula |
+|---|---|
+| **Lordo / Fatturato** | Importo totale della fattura emessa. Nessuna deduzione. |
+| **Imponibile** | `Lordo × Coefficiente_Redditività` → `=C4*SETUP!$A$1` |
+| **Tasse** | `Imponibile × Aliquota_Tasse` → `=C4*SETUP!$A$1*SETUP!$A$2` — solo se PAGATO |
+| **INPS Fisso Mensile** | `SETUP!$A$4` (€376.78) — addebitato UNA sola volta per mese, sulla prima fattura PAGATO |
+| **INPS Eccedenza 24%** | `MAX(0; (Imponibile_cumulato_YTD - MAX(SETUP!$A$3; Imponibile_cumulato_mese_precedente)) × SETUP!$A$5)` — formula differenziale, non duplicare |
+| **Zavorra Fiscale** | `Tasse_mese + INPS_fisso + INPS_eccedenza_mese` — alias mnemonico, non è un termine API |
+| **Netto Reale Mensile** | `(Fatturato_Incassato - Zavorra_Fiscale) + Entrate_Nette_Pure - Spese_Totali` |
+| **Netto Visibile (D col)** | Calcolato solo su PAGATO: `=SE(E4="PAGATO"; C4-F4-G4; 0)` — mostra il netto immediato per riga fattura |
+| **Entrate Nette Pure** | Entrate esentasse senza P.IVA (es. vendita oggetti usati). Blocco A2. Non generano tasse né INPS. |
+| **Principio di Cassa** | Tasse e INPS si calcolano SOLO su fatture con Stato = PAGATO. DA PAGARE non genera accantonamenti. |
+| **YTD** | Year-To-Date: cumulato da Gennaio al mese corrente. Usato per INPS eccedenza progressiva. |
+| **Secchiello / Sinking Fund** | Quota di Netto Reale allocata a obiettivo specifico. Non è una spesa: è risparmio vincolato. Identificato da nome utente libero (es. "GTA 6", "Pensione"). |
+| **Saving Rate** | `(Netto_Reale_Mensile - Totale_Secchielli_Mese) / Fatturato_Incassato` — protetto da IFERROR |
+
+---
+
+## 03 — ARCHITETTURA FOGLI
+
+### Struttura 14 Fogli
+
+| Foglio | Funzione | Priorità creazione |
+|---|---|---|
+| `SETUP` | Variabili fiscali + Named Ranges | 1 — prima di tutto |
+| `GENNAIO` … `DICEMBRE` | 12 fogli identici da template | 2 — duplicare, non ricreare |
+| `DASHBOARD` | Centro di controllo aggregato | 3 — ultima, legge dagli altri |
+
+### Layout Fisso — Foglio Mese
+
+**CRITICO:** Le righe sono fisse. I riferimenti cross-sheet della Dashboard dipendono da questo layout. Non spostare i blocchi.
+
+| Blocco | Righe | Contenuto |
+|---|---|---|
+| A1 | 4–35 | Fatture P.IVA — max 32 fatture per mese |
+| A2 | 38–48 | Entrate Nette Pure / Esentasse — max 10 voci |
+| B | 51–85 | Uscite con Categoria, Importo, Data, Note |
+| C | 88–97 | Dashboard Mese — celle fisse, non espandibili |
+| D | 100–112 | Secchielli risparmio — allocazione Netto Reale |
+
+### Layout Colonne — Blocco A1 (AGGIORNATO v3.0)
+
+| Col B | Col C | Col D | Col E | Col F | Col G | Col H |
+|---|---|---|---|---|---|---|
+| Cliente | Lordo | **Netto (auto)** | Stato | Tasse | INPS | Netto Reale |
+
+> **Nota migrazione da v2:** Le colonne sono scalate di +1 rispetto alla v2. Stato era D, ora è E. Aggiornare tutti i riferimenti SOMMA.SE che usavano D4:D20 → E4:E35.
+
+---
+
+## 04 — FORBIDDEN LIST
+
+Regole non negoziabili. Nessuna eccezione.
+
+| ❌ Regola | Motivazione |
+|---|---|
+| NO ARRAYFORMULA nelle celle fiscali | Debug impossibile riga per riga |
+| NO QUERY() | Usa SOMMA.SE / SOMMA.PIÙ.SE. QUERY rompe con separatori IT |
+| NO valori hardcoded nelle formule | Tutto referenzia SETUP!$A$N. SBAGLIATO: `=C4*0.78*0.05`. CORRETTO: `=C4*SETUP!$A$1*SETUP!$A$2` |
+| NO invenzione soglie INPS | Se la soglia non è in SETUP, chiedi all'utente. Non usare valori da training |
+| NO DIV/0 non gestiti | Ogni divisione deve essere protetta: `=IFERROR(A/B;0)` |
+| NO markdown in output Apps Script | Se generi codice .gs, output grezzo senza blocchi ```javascript |
+| NO duplicazione INPS eccedenza | Usare formula differenziale: mese_N meno mese_N-1 |
+| NO riscrittura completa per modifiche < 5 celle | Patch chirurgica sempre preferita per risparmiare crediti |
+| NO grafico via newChart() Apps Script | API fragile. Usa tabella dati + istruzioni manuali |
+| NO Netto su fatture DA PAGARE | La colonna D (Netto visibile) mostra 0 se Stato ≠ PAGATO |
+
+---
+
+## 05 — FOGLIO SETUP
+
+Single source of truth per tutti i parametri fiscali. Creare PRIMA di qualsiasi altro foglio.
+
+### Tabella Variabili Fiscali — Colonna A
+
+| Cella | Parametro | Valore Default | Note |
+|---|---|---|---|
+| `A1` | Coefficiente Redditività | `0.78` | Verifica codice ATECO personale |
+| `A2` | Aliquota Tasse | `0.05` | 5% agevolato. Usa 0.15 se regime ordinario |
+| `A3` | Minimale INPS Annuo (€) | `18808.00` | Soglia 2024 — aggiornare ogni anno |
+| `A4` | INPS Fisso Mensile (€) | `376.78` | = A3 ÷ 12 arrotondato |
+| `A5` | Aliquota INPS Eccedenza | `0.24` | 24% sulla parte di imponibile > A3 |
+
+### Named Ranges — Creare in Dati › Intervalli Denominati
+
+| Nome | Range | Contenuto |
+|---|---|---|
+| `ListaCategorie` | `SETUP!$C$2:$C$20` | Categorie spesa (BUSINESS, AUTO, VITA, SVAGO, INVESTIMENTO) |
+| `ListaSecchielli` | `SETUP!$E$2:$E$20` | Nomi obiettivi risparmio — liberi, definiti dall'utente |
+| `ListaStato` | `SETUP!$G$2:$G$3` | Valori fissi: PAGATO, DA PAGARE |
+
+---
+
+## 06 — FOGLIO MESE (Template)
+
+Struttura identica per tutti i 12 fogli. Replicare copiando il foglio, non creandone uno nuovo.
+
+### BLOCCO A1 — Fatture P.IVA (Righe 4–35)
+
+Header riga 3:
+
+```
+B3: "CLIENTE"   C3: "LORDO"   D3: "NETTO"   E3: "STATO"   F3: "TASSE"   G3: "INPS"   H3: "NETTO REALE"
+```
+
+Formule per riga 4 (replicare fino a riga 35):
+
+| Cella | Formula | Tipo |
+|---|---|---|
+| `B4` | Input utente | Testo |
+| `C4` | Input utente | Numero € |
+| `D4` | `=SE(E4="PAGATO";C4-F4-G4;0)` | Formula — Netto auto |
+| `E4` | Tendina da `ListaStato` | Validazione dati |
+| `F4` | `=SE(E4="PAGATO";C4*SETUP!$A$1*SETUP!$A$2;0)` | Formula — Tasse |
+| `G4` | `=SE(E4="PAGATO";SE(CONTA.SE($E$4:E4;"PAGATO")=1;SETUP!$A$4;0);0)` | Formula — INPS fisso |
+| `H4` | `=SE(E4="PAGATO";C4-F4-G4;0)` | Formula — Netto Reale riga |
+
+> **Nota INPS (G4):** `CONTA.SE($E$4:E4;"PAGATO")=1` verifica se questa è la PRIMA fattura PAGATO del mese. L'INPS fisso si addebita UNA sola volta per mese, non per ogni fattura.
+
+> **Nota Netto (D4):** Identico a H4 ma posizionato visivamente accanto al Lordo per lettura immediata. Mostra 0 se DA PAGARE — non è un netto stimato futuro.
+
+### BLOCCO A2 — Entrate Nette Pure / Esentasse (Righe 38–48)
+
+Header riga 37:
+
+```
+B37: "VOCE"   C37: "IMPORTO NETTO"   D37: "NOTE"
+```
+
+| Cella | Contenuto |
+|---|---|
+| `C38:C48` | Input utente — importo netto già disponibile |
+| `C49` | `=SOMMA(C38:C48)` — Totale entrate nette pure |
+
+### BLOCCO B — Uscite (Righe 51–85)
+
+Header riga 50:
+
+```
+B50: "CATEGORIA"   C50: "IMPORTO"   D50: "DATA"   E50: "NOTE"
+```
+
+| Cella | Contenuto |
+|---|---|
+| `B51:B85` | Tendina da `ListaCategorie` |
+| `C51:C85` | Input utente — importo € |
+| `D51:D85` | Input utente — data |
+| `C86` | `=SOMMA(C51:C85)` — Totale uscite mese |
+
+### BLOCCO C — Dashboard Mese (Righe 88–97)
+
+Celle fisse. La Dashboard annuale referenzia queste coordinate direttamente.
+
+| Cella | Etichetta | Formula |
+|---|---|---|
+| `C88` | Fatturato Incassato (Mese) | `=SOMMA.SE(E4:E35;"PAGATO";C4:C35)` |
+| `C89` | Fatturato Da Incassare | `=SOMMA.SE(E4:E35;"DA PAGARE";C4:C35)` |
+| `C90` | Entrate Nette Pure (Mese) | `=C49` |
+| `C91` | Spese Totali (Mese) | `=C86` |
+| `C92` | Zavorra Fiscale | `=SOMMA(F4:F35)+SOMMA(G4:G35)` |
+| `C93` | Netto Reale Mensile | `=(C88-C92)+C90-C91` |
+| `C94` | Totale Accantonato Secchielli | `=SOMMA(C101:C112)` |
+| `C95` | Netto Rimanente (dopo secchielli) | `=C93-C94` |
+| `C96` | Imponibile Mese | `=C88*SETUP!$A$1` |
+| `C97` | Saving Rate | `=IFERROR(C94/C88;0)` |
+
+### BLOCCO D — Secchielli Risparmio (Righe 100–112)
+
+Header riga 99:
+
+```
+B99: "OBIETTIVO"   C99: "IMPORTO"   D99: "DESCRIZIONE"
+```
+
+| Cella | Contenuto |
+|---|---|
+| `B100:B112` | Tendina da `ListaSecchielli` |
+| `C100:C112` | Input utente — importo allocato questo mese |
+| `D100:D112` | Input utente — nota libera (es. "3° rata GTA 6") |
+
+> La cella `C95` (Netto Rimanente) scala automaticamente a ogni secchiello compilato.
+
+---
+
+## 07 — NOTE FORMULE (setNote via Apps Script)
+
+Ogni cella chiave ha una nota esplicativa accessibile passando il mouse. Implementare con `sheet.getRange("C88").setNote("...")` nel codice .gs.
+
+| Cella | Etichetta | Testo Nota |
+|---|---|---|
+| `C88` | Fatturato Incassato | "Somma solo le fatture con Stato = PAGATO. Le fatture DA PAGARE non vengono conteggiate (Principio di Cassa italiano). Formula: SOMMA.SE su colonna E." |
+| `C89` | Da Incassare | "Crediti in attesa: fatture emesse ma non ancora pagate. Non genera accantonamenti fiscali finché non diventano PAGATO." |
+| `C90` | Entrate Nette Pure | "Entrate esentasse (es. vendita oggetti usati, rimborsi). Non soggette a tasse forfettarie né a INPS. Somma del Blocco A2." |
+| `C91` | Spese Totali | "Somma di tutte le uscite del mese (Blocco B). Include spese business, personali, auto, svago. Separale con le categorie per analisi." |
+| `C92` | Zavorra Fiscale | "Tasse stimate + INPS fisso mensile. Calcolati solo sull'incassato (Principio di Cassa). Formula: Lordo × 0.78 × 0.05 + €376.78 (prima fattura)." |
+| `C93` | Netto Reale Mensile | "Quello che rimane davvero in tasca: (Incassato - Zavorra) + Entrate Nette - Spese. Prima di allocare i secchielli." |
+| `C94` | Totale Secchielli | "Somma di tutto quello che hai allocato agli obiettivi di risparmio questo mese. Deve essere ≤ Netto Reale (C93)." |
+| `C95` | Netto Rimanente | "Netto Reale meno i secchielli. Idealmente = 0 se allochi tutto. Se > 0 hai liquidità non allocata." |
+| `C96` | Imponibile Mese | "Base imponibile fiscale: Fatturato Incassato × Coefficiente Redditività (0.78). Su questo si calcolano tasse e INPS eccedenza." |
+| `C97` | Saving Rate | "Percentuale del fatturato incassato che vai a risparmiare. Formula: Totale Secchielli ÷ Fatturato Incassato. Obiettivo consigliato: > 20%." |
+| `D4` | Netto (colonna) | "Netto immediato di questa fattura: Lordo - Tasse - INPS. Visibile solo se PAGATO. Se DA PAGARE mostra 0 — non è una stima futura." |
+| `F4` | Tasse (colonna) | "Accantonamento tasse per questa fattura: Lordo × 0.78 × 0.05. Solo se PAGATO. Metti da parte questa cifra appena incassi." |
+| `G4` | INPS (colonna) | "INPS fisso mensile (€376.78) addebitato SOLO sulla prima fattura PAGATO del mese. Le fatture successive del mese mostrano 0." |
+
+---
+
+## 08 — DASHBOARD ANNUALE
+
+4 sezioni + tabella dati grafico. Tutto legge dai fogli mese tramite riferimenti diretti. NO IMPORTRANGE.
+
+### Sezione 1 — Monitoraggio Entrate
+
+| Cella | Etichetta | Formula |
+|---|---|---|
+| `B2` | Data Aggiornamento | `=OGGI()` |
+| `B4` | Contrattualizzato Totale | `=SOMMA(GENNAIO!C88;GENNAIO!C89;FEBBRAIO!C88;FEBBRAIO!C89;...)` — tutte le C88+C89 dei 12 mesi |
+| `B5` | Incassato ad Oggi | `=SOMMA(GENNAIO!C88;FEBBRAIO!C88;...;DICEMBRE!C88)` |
+| `B6` | Crediti In Attesa | `=B4-B5` |
+
+### Sezione 2 — Cruscotto Fiscale (righe 10–22, una per mese)
+
+| Col B | Col C | Col D | Col E |
+|---|---|---|---|
+| Mese | Incassato | Imponibile Cumulato YTD | INPS Eccedenza Mese |
+
+Formule riga 10 (Gennaio):
+
+```
+B10: "GENNAIO"
+C10: =GENNAIO!C88
+D10: =SOMMA($C$10:C10)*SETUP!$A$1          ← cumulato YTD
+E10: =MAX(0;(MIN(D10;999999)-MAX(SETUP!$A$3;IFERROR(D9;0)))*SETUP!$A$5)
+```
+
+> **Formula E10 spiegata:**
+> - `D10` = imponibile cumulato mese corrente
+> - `IFERROR(D9;0)` = imponibile cumulato mese precedente (0 per Gennaio)
+> - `MAX(SETUP!$A$3; ...)` = non ricalcolare la parte già tassata nei mesi precedenti
+> - Risultato: solo la NUOVA eccedenza del mese corrente
+
+### Sezione 3 — Tracking Secchielli (righe 26–36)
+
+Per ogni voce in `ListaSecchielli`, aggregare da tutti i 12 Blocchi D:
+
+| Col B | Col C |
+|---|---|
+| Nome Secchiello | Totale Accantonato |
+
+Formula `C26` (es. secchiello "GTA 6" in B26):
+
+```
+=SOMMA.PIÙ.SE(GENNAIO!$C$100:$C$112;GENNAIO!$B$100:$B$112;B26)
++SOMMA.PIÙ.SE(FEBBRAIO!$C$100:$C$112;FEBBRAIO!$B$100:$B$112;B26)
++SOMMA.PIÙ.SE(MARZO!$C$100:$C$112;MARZO!$B$100:$B$112;B26)
++SOMMA.PIÙ.SE(APRILE!$C$100:$C$112;APRILE!$B$100:$B$112;B26)
++SOMMA.PIÙ.SE(MAGGIO!$C$100:$C$112;MAGGIO!$B$100:$B$112;B26)
++SOMMA.PIÙ.SE(GIUGNO!$C$100:$C$112;GIUGNO!$B$100:$B$112;B26)
++SOMMA.PIÙ.SE(LUGLIO!$C$100:$C$112;LUGLIO!$B$100:$B$112;B26)
++SOMMA.PIÙ.SE(AGOSTO!$C$100:$C$112;AGOSTO!$B$100:$B$112;B26)
++SOMMA.PIÙ.SE(SETTEMBRE!$C$100:$C$112;SETTEMBRE!$B$100:$B$112;B26)
++SOMMA.PIÙ.SE(OTTOBRE!$C$100:$C$112;OTTOBRE!$B$100:$B$112;B26)
++SOMMA.PIÙ.SE(NOVEMBRE!$C$100:$C$112;NOVEMBRE!$B$100:$B$112;B26)
++SOMMA.PIÙ.SE(DICEMBRE!$C$100:$C$112;DICEMBRE!$B$100:$B$112;B26)
+```
+
+> Funziona con qualsiasi nome secchiello in B26. Se l'utente scrive "GTA 6" nei Blocchi D dei mesi, questa formula trova e somma automaticamente tutti gli importi.
+
+Cella `C37` — Totale Generale Accantonamenti:
+```
+=SOMMA(C26:C36)
+```
+
+### Sezione 4 — Tabella Dati Grafico (righe 41–54)
+
+Questa tabella alimenta il grafico. L'utente crea il grafico manualmente selezionando B41:E53.
+
+| Col B | Col C | Col D | Col E |
+|---|---|---|---|
+| Mese | Entrate Nette | Uscite Totali | Accantonamenti |
+
+Header riga 41:
+```
+B41: "MESE"   C41: "ENTRATE NETTE"   D41: "USCITE"   E41: "ACCANTONAMENTI"
+```
+
+Formule riga 42 (Gennaio), replicare fino a riga 53 (Dicembre):
+
+| Cella | Formula |
+|---|---|
+| `B42` | `"GENNAIO"` |
+| `C42` | `=GENNAIO!C88` — Fatturato incassato netto (Entrate Nette) |
+| `D42` | `=GENNAIO!C91` — Spese totali mese |
+| `E42` | `=GENNAIO!C94` — Totale accantonato secchielli |
+
+### Istruzioni Grafico (eseguire manualmente una volta sola)
+
+1. Seleziona `B41:E53`
+2. Menu: **Inserisci → Grafico**
+3. Tipo: **Grafico a linee**
+4. Asse X: colonna B (Mesi)
+5. Serie C → colore `#2ECC71` (verde) — Entrate Nette
+6. Serie D → colore `#E74C3C` (rosso) — Uscite
+7. Serie E → colore `#3498DB` (azzurro) — Accantonamenti
+8. Titolo: "Flussi Mensili 2026"
+9. Spunta "Mostra etichette dati" se preferisci i valori visibili
+
+### Sezione 5 — Crypto Tracker (righe 57–65)
+
+| Cella | Etichetta | Formula/Contenuto |
+|---|---|---|
+| `B58` | Asset | Testo (es. BTC) |
+| `C58` | Quantità | Input utente |
+| `D58` | Prezzo Medio Acquisto (€) | Input utente |
+| `E58` | Prezzo Live (€) | `=GOOGLEFINANCE("CURRENCY:BTCEUR")` |
+| `F58` | Valore Attuale (€) | `=C58*E58` |
+| `G58` | Profitto/Perdita (€) | `=F58-(C58*D58)` |
+| `H58` | P/L % | `=IFERROR((F58-(C58*D58))/(C58*D58);0)` |
+
+> GOOGLEFINANCE ha ritardo 15–20 minuti. Non usare per trading real-time.
+
+---
+
+## 09 — ERROR HANDBOOK
+
+| Errore / Sintomo | Causa | Fix |
+|---|---|---|
+| TypeError su `hideGridlines` | API obsoleta | Colora sfondo con `setBackground("#FFFFFF")`. Non esiste `hideGridlines()`. |
+| `#DIV/0!` in Dashboard | Mese senza dati | `=IFERROR(formula;0)` su tutte le divisioni |
+| INPS eccedenza duplicata | Formula non differenziale | Verifica che E10 usi `MAX(SETUP!$A$3; IFERROR(D9;0))` non `MAX(SETUP!$A$3;0)` |
+| SOMMA.SE restituisce 0 | Separatore errato | Locale IT: usa `;` non `,`. Corretto: `=SOMMA.SE(E4:E35;"PAGATO";C4:C35)` |
+| Secchiello non sommato in Dashboard | Range Blocco D sbagliato | Nomi in col B (B100:B112), importi in col C (C100:C112) |
+| Saving Rate > 1 o negativo | Zavorra include spese Blocco B | Zavorra = solo Tasse + INPS. Le spese sono in C91, separate. |
+| Tasse su fattura DA PAGARE | Manca condizione SE | `F4` DEVE essere `=SE(E4="PAGATO";...;0)` |
+| Apps Script timeout | Troppe chiamate singole in loop | Usa `setFormulas(matrix)` invece di `setFormula()` per cella. Vedi v4.0 FIX-06. |
+| Netto D4 mostra valore per DA PAGARE | Formula senza condizione stato | `D4=SE(E4="PAGATO";C4-F4-G4;0)` — deve restituire 0 se non PAGATO |
+| Secchiello non appare in Dashboard | Nome non corrisponde esatto | Il nome in B26 Dashboard DEVE essere identico (maiuscole incluse) al nome inserito nel Blocco D del foglio mese |
+
+---
+
+## 10 — OUTPUT FORMAT E WORKFLOW
+
+### Formato Standard Risposta Formule
+
+Per ogni foglio richiesto, l'LLM restituisce una tabella con queste colonne ESATTE:
+
+| Cella | Etichetta | Formula o Valore | Tipo |
+|---|---|---|---|
+| `E4` | Stato Fattura | `ListaStato` | Validazione dati |
+| `F4` | Tasse | `=SE(E4="PAGATO";C4*SETUP!$A$1*SETUP!$A$2;0)` | Formula |
+| `C88` | Fatturato Incassato | `=SOMMA.SE(E4:E35;"PAGATO";C4:C35)` | Formula |
+| `SETUP!A2` | Aliquota Tasse | `0.05` | Valore hardcoded |
+
+### Cosa NON scrivere
+
+- Nessuna spiegazione narrativa se non richiesta esplicitamente
+- Nessun preambolo
+- Nessuna formula senza coordinata di cella
+- Nessun valore fiscale non referenziato a SETUP!$A$N
+
+### Ordine di Generazione (dalla scrittura del .gs)
+
+| Step | Azione | Output |
+|---|---|---|
+| 1 | Crea foglio SETUP | Variabili fiscali + 3 Named Ranges |
+| 2 | Crea template MESE | Un foglio con tutti i blocchi A/B/C/D, formule complete, setNote() |
+| 3 | Duplica × 12 | GENNAIO–DICEMBRE — copiare il template, non ricreare |
+| 4 | Crea DASHBOARD | 5 sezioni + tabella grafico |
+| 5 | Verifica cross-sheet | Dashboard!B5 = somma di tutti i C88 dei 12 mesi |
+| 6 | SpreadsheetApp.flush() | Forzare scrittura prima dell'alert finale |
+
+---
+
+## 11 — CHANGELOG
+
+| Versione | Data | Modifiche |
+|---|---|---|
+| v1.0 | 2026-04 | Prima stesura — architettura base 14 fogli |
+| v2.0 | 2026-05 | Fix critici: B9/D9 mancanti, G2 sbagliato, Saving Rate fisso su B7, batch writes, foglio CONFIG, columnToLetter, SUMIF separatore, setFrozenRows |
+| v3.0 | 2026-05 | Nuove feature: righe A1 estese a 4–35, colonna Netto visibile (D), Entrate Nette Pure Blocco A2, tabella dati grafico + istruzioni manuali, Secchielli con totale cumulativo in Dashboard, setNote() su tutte le celle chiave, layout colonne Blocco A1 aggiornato (+1 su tutte le colonne da E in poi) |
+
+---
+
+*Fine documento — aggiornare questo file ad ogni modifica prima di generare il .gs*
