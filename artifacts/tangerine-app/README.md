@@ -7,7 +7,7 @@ Stack: **React 19 + Vite + Tailwind 4** lato client, **Supabase** (Postgres + Au
 
 - **PIN 6-cifre sopra Supabase Auth**. Al primo avvio l'app crea un account anonimo (`signInAnonymously`) e lega un PIN bcrypt salvato nella tabella `auth_pin`. Il PIN gestisce 5 tentativi → 5 minuti di lockout server-side, così l'aggressore non aggira il blocco svuotando lo storage.
 - **Cross-device**: l'utente collega un'email all'account anonimo, riceve il magic-link sul nuovo device, ri-imposta lo stesso PIN. Stessi dati ovunque.
-- **Logica fiscale in Edge Functions** (`compute-mese`, `compute-anno`, `conguaglio-socio`). Stesso JWT → stessi numeri da telefono e PC. Il calcolo è documentato in `docs/FISCAL_ENGINE.md` e validato dai 28 test in `src/lib/fiscal.test.ts`.
+- **Logica fiscale**: la sorgente di verità è il motore client in `src/lib/fiscal.ts` (modello Netto Lordo / Tax-safe con secchielli TAX vs DISCRETIONARY), validato dai test in `src/lib/fiscal.test.ts`. Le Edge Function `compute-anno` e `conguaglio-socio` girano ancora sul motore legacy in `supabase/functions/_shared/fiscal.ts`: è sicuro perché FiscoScreen consuma solo i campi aggregati (zavorra, tasse, INPS, quota socio, allocato, imponibile YTD) che coincidono fra i due modelli. La vecchia `compute-mese` è stata rimossa nel maggio 2026 perché non più referenziata e non allineata al nuovo modello.
 - **Row Level Security** su tutte le tabelle (`user_id = auth.uid()`).
 
 ## Setup Supabase
@@ -17,7 +17,6 @@ Stack: **React 19 + Vite + Tailwind 4** lato client, **Supabase** (Postgres + Au
 3. Auth → Providers → abilita "Anonymous sign-ins" e "Email (magic link)".
 4. Deploy delle Edge Function:
    ```bash
-   supabase functions deploy compute-mese
    supabase functions deploy compute-anno
    supabase functions deploy conguaglio-socio
    supabase functions deploy auth-pin-setup

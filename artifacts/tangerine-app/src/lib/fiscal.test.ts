@@ -3,6 +3,15 @@
  * Eseguire con: tsx src/lib/fiscal.test.ts (oppure il runner Vitest se aggiunto).
  *
  * Qui usiamo un mini-runner senza dipendenze: stampa OK/KO e sets exit code.
+ *
+ * NOTA (task #11, mag 2026): la sorgente di verità per il calcolo fiscale è
+ * `src/lib/fiscal.ts` lato client, col modello Netto Lordo / Tax-safe
+ * (`taxBucketIds`, `netto_lordo_mese`, `alloc_tax/discrezionali`). L'Edge
+ * Function `compute-mese` è stata rimossa perché non più referenziata e non
+ * allineata; non serve quindi un test cross-engine per quella funzione.
+ * `compute-anno` resta in uso per FiscoScreen ma legge solo i campi base
+ * (zavorra, tasse, INPS, quota socio, allocato totale, imponibile_ytd) che
+ * coincidono fra i due modelli — coperti dagli scenari sotto.
  */
 import { calcolaMese, calcolaRiepilogoAnno } from "./fiscal";
 import { PROFILE_AUGUSTO_DEFAULT } from "./seed";

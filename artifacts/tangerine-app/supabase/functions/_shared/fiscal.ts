@@ -1,10 +1,18 @@
 /**
- * Motore fiscale — copia 1:1 di src/lib/fiscal.ts.
- * Sorgente di verità deployata su Edge Function così tutti i device
- * vedono gli stessi numeri (vedi docs/API.md).
+ * Motore fiscale legacy lato Edge Function.
  *
- * Se modifichi qui, ALLINEA src/lib/fiscal.ts (e fai passare i test
- * scenari A-J in src/lib/fiscal.test.ts).
+ * NON è più una copia 1:1 di `src/lib/fiscal.ts`: dal task #11 (mag 2026)
+ * la sorgente di verità è il motore client, che implementa il modello
+ * Netto Lordo / Tax-safe con secchielli TAX vs DISCRETIONARY
+ * (`taxBucketIds`, `netto_lordo_mese`, `alloc_tax/discrezionali`).
+ *
+ * Questo file è ancora usato dalle Edge Function `compute-anno` e
+ * `conguaglio-socio`, ma solo per i campi aggregati base (zavorra,
+ * tasse, INPS, quota socio, allocato, imponibile YTD) che coincidono
+ * fra modello vecchio e nuovo. NON aggiungere consumer che leggano
+ * `netto_lordo_mese` o `tax_safe_mese` da qui: divergerebbero dal
+ * client. Se serve, porta prima questo motore al nuovo modello (o
+ * sostituisci le Edge Function con calcolo client, vedi follow-up #12).
  */
 
 export type TipoInps = "ARTIGIANI" | "COMMERCIANTI" | "GESTIONE_SEPARATA";

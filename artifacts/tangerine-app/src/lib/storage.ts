@@ -207,9 +207,9 @@ export async function upsertAllocazione(
   });
 }
 
-// ─── Quota socio: ricomputo lato client (gli stessi numeri li
-//    produrrebbe l'Edge Function compute-mese; qui aggiorniamo
-//    il secchiello per visualizzazione immediata). ────────
+// ─── Quota socio: ricomputo lato client riusando il motore
+//    fiscale canonico (`src/lib/fiscal.ts`); aggiorniamo il
+//    secchiello per visualizzazione immediata. ────────
 async function syncQuotaSocio(): Promise<void> {
   const sb = requireSupabase();
   const profile = state.profile;

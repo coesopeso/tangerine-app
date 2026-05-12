@@ -1,9 +1,19 @@
 /**
- * Hooks che consultano le Edge Function `compute-mese` / `compute-anno`.
- * Le Edge Function sono la sorgente canonica: stesso JWT da telefono o PC
- * → stessi numeri (vedi docs/API.md "Edge Functions").
+ * Hook che consulta l'Edge Function `compute-anno` (usata da FiscoScreen).
  *
- * Cache locale per (anno, mese) per evitare round-trip a ogni rerender.
+ * NOTA (task #11, mag 2026): l'hook `useComputeMese` e la corrispondente
+ * Edge Function `compute-mese` sono stati rimossi. Dopo l'introduzione del
+ * modello "Netto Lordo / Tax-safe" (secchielli TAX vs DISCRETIONARY,
+ * `taxBucketIds`, `netto_lordo_mese`, `alloc_tax/discrezionali`) la
+ * Dashboard calcola tutto lato client via `src/lib/fiscal.ts` e non
+ * referenziava più l'hook. Per evitare il trabocchetto di chiamate
+ * server che restituirebbero numeri diversi dal client, abbiamo scelto
+ * di rimuovere `compute-mese` invece di duplicarne il porting.
+ *
+ * `compute-anno` è invece ancora usata da FiscoScreen e legge solo i
+ * campi base del riepilogo (zavorra, tasse, INPS, quota socio,
+ * allocato totale, imponibile_ytd), che restano identici fra modello
+ * vecchio e nuovo: nessun re-deploy necessario.
  */
 import { useEffect, useState } from "react";
 import { requireSupabase } from "./supabase";
@@ -19,30 +29,6 @@ export interface AnnoTotali {
   zavorra: number;
   quota_socio: number;
   allocato: number;
-}
-
-export function useComputeMese(anno: number, mese: number, refreshKey: number) {
-  const [data, setData] = useState<RiepilogoMese | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
-  useEffect(() => {
-    let cancelled = false;
-    setLoading(true);
-    setError(null);
-    requireSupabase()
-      .functions.invoke<RiepilogoMese & { error?: string; message?: string }>("compute-mese", {
-        body: { anno, mese },
-      })
-      .then(({ data, error }) => {
-        if (cancelled) return;
-        if (error) setError(error.message);
-        else if (data?.error) setError(data.message ?? data.error);
-        else setData(data as RiepilogoMese);
-      })
-      .finally(() => !cancelled && setLoading(false));
-    return () => { cancelled = true; };
-  }, [anno, mese, refreshKey]);
-  return { data, error, loading };
 }
 
 export function useComputeAnno(anno: number, refreshKey: number) {
