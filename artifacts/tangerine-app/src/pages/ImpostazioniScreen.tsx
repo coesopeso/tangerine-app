@@ -4,13 +4,43 @@
  * Stato attuale (S1): vista in sola lettura dei parametri di profilo +
  * azioni base (logout). L'editor completo arriva nel task Impostazioni.
  */
-import { LogOut, Settings as SettingsIcon } from "lucide-react";
-import { getProfile } from "@/lib/storage";
+import { Check, LogOut, Palette, Settings as SettingsIcon } from "lucide-react";
+import { useState } from "react";
+import { getProfile, saveProfile } from "@/lib/storage";
 import { signOut } from "@/lib/auth";
 import { eur } from "@/lib/format";
+import {
+  TEMA_COLORI,
+  TEMA_COLORE_LABEL,
+  TEMA_COLORE_SWATCH,
+  applyTema,
+  getStoredTema,
+  type TemaColore,
+} from "@/lib/theme";
 
 export function ImpostazioniScreen() {
   const p = getProfile();
+  // Se il profilo ancora non ha il campo (vecchi utenti), partiamo dal valore
+  // già applicato (localStorage / default).
+  const initialTema: TemaColore = p?.tema_colore ?? getStoredTema();
+  const [tema, setTema] = useState<TemaColore>(initialTema);
+  const [savingTema, setSavingTema] = useState<TemaColore | null>(null);
+
+  async function handlePickTema(t: TemaColore) {
+    if (t === tema) return;
+    // Optimistic: applica subito (anche su localStorage), poi prova a salvare.
+    applyTema(t);
+    setTema(t);
+    if (!p) return;
+    try {
+      setSavingTema(t);
+      await saveProfile({ ...p, tema_colore: t });
+    } catch (e) {
+      console.error("Salvataggio tema fallito:", e);
+    } finally {
+      setSavingTema(null);
+    }
+  }
 
   return (
     <div className="px-4 py-6 space-y-6">
@@ -18,6 +48,51 @@ export function ImpostazioniScreen() {
         <SettingsIcon className="w-6 h-6 text-primary" />
         <h2 className="text-xl font-semibold">Impostazioni</h2>
       </div>
+
+      <section className="rounded-2xl border border-card-border bg-card p-4 space-y-3">
+        <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-2">
+          <Palette className="w-4 h-4" />
+          Tema colore
+        </h3>
+        <p className="text-xs text-muted-foreground">
+          Sceglie il colore di accento dell'app. La scelta viene salvata sul tuo profilo.
+        </p>
+        <div className="grid grid-cols-6 gap-3 pt-1">
+          {TEMA_COLORI.map((t) => {
+            const selected = t === tema;
+            const saving = savingTema === t;
+            return (
+              <button
+                key={t}
+                type="button"
+                onClick={() => handlePickTema(t)}
+                disabled={saving}
+                aria-label={TEMA_COLORE_LABEL[t]}
+                aria-pressed={selected}
+                title={TEMA_COLORE_LABEL[t]}
+                className={[
+                  "relative aspect-square rounded-full border transition",
+                  selected
+                    ? "border-foreground/80 ring-2 ring-foreground/40"
+                    : "border-card-border hover:border-foreground/40",
+                  saving ? "opacity-60" : "",
+                ].join(" ")}
+                style={{ backgroundColor: TEMA_COLORE_SWATCH[t] }}
+              >
+                {selected && (
+                  <Check
+                    className="w-4 h-4 absolute inset-0 m-auto text-white drop-shadow"
+                    strokeWidth={3}
+                  />
+                )}
+              </button>
+            );
+          })}
+        </div>
+        <p className="text-[11px] text-muted-foreground pt-1">
+          {TEMA_COLORE_LABEL[tema]}
+        </p>
+      </section>
 
       <section className="rounded-2xl border border-card-border bg-card p-4 space-y-3">
         <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">

@@ -15,6 +15,7 @@ import type {
   AllocazioneSecchiello, Categoria, Fattura, Profile, Secchiello, Spesa,
 } from "./types";
 import { CATEGORIE_SEED, PROFILE_AUGUSTO_DEFAULT, SECCHIELLI_SEED } from "./seed";
+import { applyTema, isTemaColore } from "./theme";
 
 interface State {
   profile: Profile | null;
@@ -61,6 +62,11 @@ export async function hydrate(): Promise<void> {
     spese: (spR.data ?? []) as Spesa[],
     allocazioni: (aR.data ?? []) as AllocazioneSecchiello[],
   };
+  // Allinea il tema accent al valore lato server (sovrascrive il fallback
+  // localStorage applicato in main.tsx). Se il profilo non ha ancora il
+  // campo (vecchi utenti), lasciamo quello che era già attivo.
+  const t = state.profile?.tema_colore;
+  if (isTemaColore(t)) applyTema(t);
   notify();
 }
 
@@ -86,6 +92,7 @@ export async function saveProfile(p: Profile & { onboarded?: boolean }): Promise
   const { error } = await sb.from("profile").upsert(row);
   if (error) throw error;
   state = { ...state, profile: row as Profile };
+  if (isTemaColore(row.tema_colore)) applyTema(row.tema_colore);
   notify();
 }
 

@@ -25,6 +25,8 @@ export interface Profile {
   investimenti_iniziali: number;
   pac_mensile_automatico?: number;
   cuscinetto_mensile_automatico?: number;
+  /** Preset colore accent (vedi src/lib/theme.ts). */
+  tema_colore?: import("./theme").TemaColore;
 }
 
 export interface Fattura {
