@@ -1,0 +1,98 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@plugin "@tailwindcss/typography";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --color-background: hsl(var(--background));
+  --color-foreground: hsl(var(--foreground));
+  --color-border: hsl(var(--border));
+  --color-input: hsl(var(--input));
+  --color-ring: hsl(var(--ring));
+  --color-card: hsl(var(--card));
+  --color-card-foreground: hsl(var(--card-foreground));
+  --color-card-border: hsl(var(--card-border));
+  --color-popover: hsl(var(--popover));
+  --color-popover-foreground: hsl(var(--popover-foreground));
+  --color-popover-border: hsl(var(--popover-border));
+  --color-primary: hsl(var(--primary));
+  --color-primary-foreground: hsl(var(--primary-foreground));
+  --color-secondary: hsl(var(--secondary));
+  --color-secondary-foreground: hsl(var(--secondary-foreground));
+  --color-muted: hsl(var(--muted));
+  --color-muted-foreground: hsl(var(--muted-foreground));
+  --color-accent: hsl(var(--accent));
+  --color-accent-foreground: hsl(var(--accent-foreground));
+  --color-destructive: hsl(var(--destructive));
+  --color-destructive-foreground: hsl(var(--destructive-foreground));
+  --color-success: hsl(var(--success));
+  --color-info: hsl(var(--info));
+  --color-warning: hsl(var(--warning));
+
+  --font-sans: var(--app-font-sans);
+  --font-mono: var(--app-font-mono);
+
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+}
+
+/* DARK = default Revolut as-built (UX_RULES.md v5.2) */
+:root, .dark {
+  /* base hex from docs:
+     bg #0E0E14  surface #1A1A22  border #2A2A36
+     text #FAFAFA  text-2 #8B8B9E
+     accent #FFC048 (giallo Revolut)
+     success #00D9A0 info #4A9EFF warning #E84393 error #FF4D6D */
+  --background: 240 18% 7%;        /* #0E0E14 */
+  --foreground: 0 0% 98%;          /* #FAFAFA */
+  --card: 240 14% 12%;             /* #1A1A22 */
+  --card-foreground: 0 0% 98%;
+  --card-border: 240 13% 19%;      /* #2A2A36 */
+  --popover: 240 14% 12%;
+  --popover-foreground: 0 0% 98%;
+  --popover-border: 240 13% 19%;
+  --border: 240 13% 19%;
+  --input: 240 13% 19%;
+  --ring: 41 100% 64%;             /* #FFC048 */
+  --primary: 41 100% 64%;          /* #FFC048 giallo Revolut */
+  --primary-foreground: 240 18% 7%;
+  --secondary: 240 14% 16%;
+  --secondary-foreground: 0 0% 98%;
+  --muted: 240 14% 14%;
+  --muted-foreground: 240 11% 58%; /* #8B8B9E */
+  --accent: 41 100% 64%;
+  --accent-foreground: 240 18% 7%;
+  --destructive: 350 100% 65%;     /* #FF4D6D */
+  --destructive-foreground: 0 0% 98%;
+  --success: 162 100% 43%;         /* #00D9A0 */
+  --info: 213 100% 64%;            /* #4A9EFF */
+  --warning: 327 78% 59%;          /* #E84393 */
+
+  --app-font-sans: 'Inter', system-ui, -apple-system, sans-serif;
+  --app-font-mono: 'JetBrains Mono', Menlo, monospace;
+  --radius: 0.875rem;
+
+  --elevate-1: rgba(255,255,255,.04);
+  --elevate-2: rgba(255,255,255,.09);
+  --button-outline: rgba(255,255,255,.10);
+  --badge-outline: rgba(255,255,255,.05);
+}
+
+@layer base {
+  html, body, #root { height: 100%; }
+  body {
+    @apply bg-background text-foreground antialiased font-sans;
+    font-feature-settings: "cv11", "ss01";
+  }
+  .tabular { font-variant-numeric: tabular-nums; }
+  /* Lock to dark always — Revolut palette is the chosen design. */
+  html { color-scheme: dark; }
+}
+
+@layer utilities {
+  .safe-bottom { padding-bottom: env(safe-area-inset-bottom); }
+  .glass { backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
+}

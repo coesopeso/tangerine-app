@@ -1,0 +1,12 @@
+project_id = "tangerine-app"
+
+[functions.compute-mese]
+verify_jwt = true
+[functions.compute-anno]
+verify_jwt = true
+[functions.conguaglio-socio]
+verify_jwt = true
+[functions.auth-pin-setup]
+verify_jwt = true
+[functions.auth-pin-verify]
+verify_jwt = true

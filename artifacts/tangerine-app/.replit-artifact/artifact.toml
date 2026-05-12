@@ -1,0 +1,31 @@
+kind = "web"
+previewPath = "/"
+title = "Tangerine"
+version = "1.0.0"
+id = "artifacts/tangerine-app"
+router = "path"
+
+[[integratedSkills]]
+name = "react-vite"
+version = "1.0.0"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 22324
+
+[services.development]
+run = "pnpm --filter @workspace/tangerine-app run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/tangerine-app", "run", "build" ]
+publicDir = "artifacts/tangerine-app/dist/public"
+serve = "static"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "22324"
+BASE_PATH = "/"
