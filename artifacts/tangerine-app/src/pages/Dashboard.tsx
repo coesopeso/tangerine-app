@@ -219,61 +219,6 @@ export function Dashboard() {
             </div>
           </section>
 
-          {/* PREVISIONE FINE ANNO — intervallo basso↔alto */}
-          {previsione && (
-            <section className="md:col-span-2 glass-card rounded-2xl p-5">
-              <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center gap-2 text-xs uppercase tracking-widest text-muted-foreground">
-                  <Telescope className="w-4 h-4" /> Previsione {previsione.anno}
-                </div>
-                <div className="text-[10px] text-muted-foreground">
-                  {previsione.mesi_rimanenti > 0
-                    ? `${previsione.mesi_rimanenti} mes${previsione.mesi_rimanenti === 1 ? "e" : "i"} da stimare`
-                    : "anno già consuntivato"}
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <PrevisioneCard
-                  label="Netto Lordo a fine anno"
-                  basso={previsione.basso.netto_lordo}
-                  alto={previsione.alto.netto_lordo}
-                  tone="primary"
-                />
-                <PrevisioneCard
-                  label="Tax-safe a fine anno"
-                  basso={previsione.basso.tax_safe}
-                  alto={previsione.alto.tax_safe}
-                  tone="good"
-                />
-              </div>
-
-              {/* Imponibile vs soglia INPS — capisco se sforerò 18.415 */}
-              <div className="mt-4 rounded-xl bg-white/[0.03] border border-white/5 p-3">
-                <div className="flex items-center justify-between text-[11px] text-muted-foreground mb-1">
-                  <span>Imponibile previsto vs soglia INPS</span>
-                  <span className="tabular">soglia {eur(previsione.soglia_inps)}</span>
-                </div>
-                <div className="text-sm tabular">
-                  {eur(previsione.basso.imponibile)}{" "}
-                  <span className="text-muted-foreground">↔</span>{" "}
-                  {eur(previsione.alto.imponibile)}
-                </div>
-                <SogliaInpsHint
-                  basso={previsione.basso.imponibile}
-                  alto={previsione.alto.imponibile}
-                  soglia={previsione.soglia_inps}
-                />
-              </div>
-
-              <div className="mt-3 text-[10px] text-muted-foreground/70 leading-relaxed">
-                Basso = scenario prudente (mesi residui a metà media YTD).
-                Alto = scenario ottimista (media YTD piena). Include le entrate
-                e spese già programmate.
-              </div>
-            </section>
-          )}
-
           {/* 3 INDICATORI CHIAVE — full-width su mobile, 3 col su desktop */}
           <section className="md:col-span-2 grid grid-cols-3 gap-3">
             <MetricCard
@@ -358,6 +303,55 @@ export function Dashboard() {
             )}
           </section>
 
+          {/* PREVISIONE FINE ANNO — solo dato reale + righe programmate */}
+          {previsione && (
+            <section className="md:col-span-2 glass-card rounded-2xl p-5">
+              <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
+                <div className="flex items-center gap-2 text-xs uppercase tracking-widest text-muted-foreground">
+                  <Telescope className="w-4 h-4" /> Proiezione fine anno {previsione.anno}
+                </div>
+                <div className="text-[10px] text-muted-foreground">
+                  {previsione.mesi_rimanenti > 0
+                    ? `${previsione.mesi_rimanenti} mes${
+                        previsione.mesi_rimanenti === 1 ? "e" : "i"
+                      } da chiudere · include ${previsione.fatture_programmate_count} fattur${
+                        previsione.fatture_programmate_count === 1 ? "a" : "e"
+                      } e ${previsione.spese_programmate_count} spes${
+                        previsione.spese_programmate_count === 1 ? "a" : "e"
+                      } già programmate`
+                    : "anno consuntivato"}
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <MiniKpi label="Netto Lordo" value={previsione.netto_lordo} tone="primary" />
+                <MiniKpi label="Tax-safe" value={previsione.tax_safe} tone="good" />
+                <MiniKpi label="Imponibile" value={previsione.imponibile} tone="default" />
+              </div>
+
+              <div className="mt-4 rounded-xl bg-white/[0.03] border border-white/5 p-3">
+                <div className="flex items-center justify-between text-[11px] text-muted-foreground mb-1.5">
+                  <span>Imponibile vs soglia INPS</span>
+                  <span className="tabular">soglia {eur(previsione.soglia_inps)}</span>
+                </div>
+                <ProgressBar
+                  pct={Math.min(100, (previsione.imponibile / previsione.soglia_inps) * 100)}
+                />
+                <SogliaInpsHint
+                  imponibile={previsione.imponibile}
+                  soglia={previsione.soglia_inps}
+                />
+              </div>
+
+              <div className="mt-3 text-[10px] text-muted-foreground/70 leading-relaxed">
+                Solo dati reali: incassato + speso fino a oggi più le fatture e
+                spese che hai marcato come programmate. Niente medie o stime
+                inventate — se vuoi che un incasso futuro entri qui, salvalo
+                come "fattura programmata".
+              </div>
+            </section>
+          )}
+
           {/* TOP CLIENTI + TOP SPESE — affiancati su desktop */}
           <TopClienti fatture={fatture} refsSet={refsSet} />
           <TopSpese spese={spese} categorie={categorie} refsSet={refsSet} />
@@ -430,58 +424,32 @@ function ProgressBar({ pct }: { pct: number }) {
   );
 }
 
-function PrevisioneCard({
-  label, basso, alto, tone,
-}: {
-  label: string;
-  basso: number;
-  alto: number;
-  tone: "primary" | "good";
-}) {
-  const cls = tone === "good" ? "text-[hsl(var(--success))]" : "text-primary";
-  return (
-    <div className="rounded-xl bg-white/[0.03] border border-white/5 p-4">
-      <div className="text-[10px] uppercase tracking-wide text-muted-foreground">
-        {label}
-      </div>
-      <div className={`mt-1.5 text-2xl font-bold tabular ${cls}`}>
-        {eur(basso)}{" "}
-        <span className="text-muted-foreground text-base font-normal">↔</span>{" "}
-        {eur(alto)}
-      </div>
-      <div className="text-[10px] text-muted-foreground mt-1">
-        scenario prudente ↔ ottimista
-      </div>
-    </div>
-  );
-}
-
 function SogliaInpsHint({
-  basso, alto, soglia,
+  imponibile, soglia,
 }: {
-  basso: number;
-  alto: number;
+  imponibile: number;
   soglia: number;
 }) {
-  if (alto <= soglia) {
+  const ratio = soglia > 0 ? imponibile / soglia : 0;
+  if (ratio < 0.85) {
     return (
-      <div className="mt-1 text-[11px] text-[hsl(var(--success))] flex items-center gap-1">
-        Sotto la soglia in entrambi gli scenari.
+      <div className="mt-1.5 text-[11px] text-[hsl(var(--success))]">
+        Sotto la soglia. Nessuna eccedenza INPS attesa con questi dati.
       </div>
     );
   }
-  if (basso > soglia) {
+  if (ratio < 1) {
     return (
-      <div className="mt-1 text-[11px] text-[hsl(var(--warning))] flex items-center gap-1">
+      <div className="mt-1.5 text-[11px] text-[hsl(var(--warning))] flex items-center gap-1">
         <AlertTriangle className="w-3 h-3" />
-        Supererai la soglia: prevista eccedenza INPS in entrambi gli scenari.
+        Vicino alla soglia: poco margine prima dell'eccedenza INPS.
       </div>
     );
   }
   return (
-    <div className="mt-1 text-[11px] text-[hsl(var(--warning))] flex items-center gap-1">
+    <div className="mt-1.5 text-[11px] text-destructive flex items-center gap-1">
       <AlertTriangle className="w-3 h-3" />
-      Soglia a rischio: la supererai solo nello scenario ottimista.
+      Sopra la soglia: prevista eccedenza INPS al 24%.
     </div>
   );
 }
