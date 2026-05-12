@@ -86,17 +86,63 @@
   body {
     @apply bg-background text-foreground antialiased font-sans;
     font-feature-settings: "cv11", "ss01";
+    position: relative;
   }
+  /* Ambient: due aloni arancioni morbidi che danno profondità al nero puro
+     senza inquinare la palette (rimangono sotto al contenuto). */
+  body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 0;
+    background:
+      radial-gradient(60% 40% at 85% -10%, rgba(232, 80, 2, 0.22) 0%, transparent 60%),
+      radial-gradient(50% 35% at -10% 110%, rgba(193, 8, 1, 0.18) 0%, transparent 65%);
+  }
+  #root { position: relative; z-index: 1; }
   .tabular { font-variant-numeric: tabular-nums; }
-  /* Lock to dark always — Revolut palette is the chosen design. */
   html { color-scheme: dark; }
 }
 
 @layer utilities {
   .safe-bottom { padding-bottom: env(safe-area-inset-bottom); }
-  .glass { backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
+
+  /* Glass card stile iOS 26: vetro scuro, blur forte, bordo luminoso 1px,
+     riflesso interno sottile in alto. Da applicare su .glass-card al posto
+     di `bg-card border border-card-border`. */
+  .glass-card {
+    background: linear-gradient(180deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0.02) 100%), rgba(26,26,26,0.55);
+    backdrop-filter: blur(20px) saturate(140%);
+    -webkit-backdrop-filter: blur(20px) saturate(140%);
+    border: 1px solid rgba(255,255,255,0.08);
+    box-shadow:
+      inset 0 1px 0 rgba(255,255,255,0.06),
+      0 1px 0 rgba(0,0,0,0.4),
+      0 8px 24px rgba(0,0,0,0.35);
+  }
+  .glass-card-strong {
+    background: linear-gradient(180deg, rgba(255,255,255,0.08) 0%, rgba(255,255,255,0.02) 100%), rgba(26,26,26,0.7);
+    backdrop-filter: blur(24px) saturate(160%);
+    -webkit-backdrop-filter: blur(24px) saturate(160%);
+    border: 1px solid rgba(255,255,255,0.10);
+    box-shadow:
+      inset 0 1px 0 rgba(255,255,255,0.08),
+      0 12px 32px rgba(0,0,0,0.45);
+  }
+  /* Vetro semplice (es. nav bar sticky) */
+  .glass {
+    backdrop-filter: blur(16px) saturate(140%);
+    -webkit-backdrop-filter: blur(16px) saturate(140%);
+  }
+
   /* Eccezione: usare al massimo su UN elemento hero della Dashboard. */
   .brand-gradient {
     background: linear-gradient(135deg, #000000 0%, #C10801 35%, #F16001 70%, #D9C3AB 100%);
+  }
+  /* Variante più scura/leggibile per overlay informativi */
+  .brand-gradient-soft {
+    background:
+      linear-gradient(135deg, rgba(0,0,0,0.6) 0%, rgba(193,8,1,0.55) 40%, rgba(241,96,1,0.45) 75%, rgba(217,195,171,0.35) 100%);
   }
 }

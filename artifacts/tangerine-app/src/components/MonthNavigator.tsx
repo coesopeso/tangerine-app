@@ -22,7 +22,7 @@ export function MonthNavigator({ anno, mese, onChange }: Props) {
 
   return (
     <>
-      <div className="sticky top-0 z-20 bg-card/80 glass border-b border-card-border">
+      <div className="sticky top-0 z-20 glass bg-background/60 border-b border-white/5">
         <div className="flex items-center justify-between px-4 h-14">
           <button
             onClick={prev}

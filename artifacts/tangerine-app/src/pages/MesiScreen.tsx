@@ -56,11 +56,24 @@ export function MesiScreen({ anno, mese }: Props) {
 
   return (
     <div className="px-4 py-5 space-y-5">
-      <header className="flex items-center gap-2">
-        <CalendarDays className="w-5 h-5 text-primary" />
-        <h2 className="text-lg font-semibold">
-          {nomeMese(mese)} {anno}
-        </h2>
+      {/* Hero brand gradient con riepilogo mese — l'unico elemento full-color */}
+      <header className="relative overflow-hidden rounded-3xl brand-gradient p-5 shadow-2xl">
+        <div className="absolute inset-0 bg-black/20" />
+        <div className="relative">
+          <div className="flex items-center gap-2 text-white/80 text-xs uppercase tracking-widest">
+            <CalendarDays className="w-4 h-4" />
+            Riepilogo mese
+          </div>
+          <h2 className="text-3xl font-bold text-white mt-1">
+            {nomeMese(mese)} {anno}
+          </h2>
+          <div className="mt-3 flex items-baseline gap-2">
+            <span className="text-4xl font-bold text-white tabular drop-shadow">
+              {eur(r.tax_safe_mese)}
+            </span>
+            <span className="text-white/70 text-sm">ti restano davvero</span>
+          </div>
+        </div>
       </header>
 
       {/* 4 KPI MESE — 2x2 mobile, 1x4 desktop */}
@@ -91,7 +104,7 @@ export function MesiScreen({ anno, mese }: Props) {
       </section>
 
       {/* Riga di sintesi sotto i KPI: totali entrate/uscite + tax-safe */}
-      <section className="rounded-2xl border border-card-border bg-card p-4 grid grid-cols-3 gap-2 text-center">
+      <section className="glass-card rounded-2xl p-4 grid grid-cols-3 gap-2 text-center">
         <Mini icon={<TrendingUp className="w-4 h-4" />} label="Entrate" value={incassato_totale} tone="success" />
         <Mini icon={<Receipt className="w-4 h-4" />} label="Uscite" value={totale_uscite + r.zavorra_fiscale_mese} tone="destructive" />
         <Mini
@@ -103,7 +116,7 @@ export function MesiScreen({ anno, mese }: Props) {
       </section>
 
       {/* Placeholder per S3 - lista movimenti */}
-      <section className="rounded-2xl border border-dashed border-card-border bg-card/40 p-6 text-center">
+      <section className="rounded-2xl border border-dashed border-white/10 bg-white/[0.02] p-6 text-center">
         <PiggyBank className="w-8 h-8 mx-auto text-muted-foreground mb-2" />
         <p className="text-sm text-muted-foreground">
           Lista movimenti in arrivo (S3): tutte le fatture, spese e allocazioni del mese
