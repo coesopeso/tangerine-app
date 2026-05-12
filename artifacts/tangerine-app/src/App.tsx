@@ -11,6 +11,7 @@ import { PatrimonioScreen } from "@/pages/PatrimonioScreen";
 import { ImpostazioniScreen } from "@/pages/ImpostazioniScreen";
 import { SetupScreen } from "@/pages/SetupScreen";
 import { PeriodPicker } from "@/components/PeriodPicker";
+import { MonthNavigator } from "@/components/MonthNavigator";
 import { TabBar, type TabKey } from "@/components/TabBar";
 import { QuickAddSheet } from "@/components/QuickAddSheet";
 
@@ -23,10 +24,22 @@ export default function App() {
   const [addOpen, setAddOpen] = useState(false);
   const [tick, setTick] = useState(0);
 
-  // Re-render on storage cache notifications.
+  // Stato locale del tab "Mesi" — INDIPENDENTE dal PeriodPicker globale.
+  // Si resetta al mese corrente ogni volta che si entra nel tab.
+  const today = new Date();
+  const [mesiAnno, setMesiAnno] = useState(today.getFullYear());
+  const [mesiMese, setMesiMese] = useState(today.getMonth() + 1);
+
   useEffect(() => subscribe(() => setTick((t) => t + 1)), []);
 
-  // Boot sequence: ensure Supabase configured → anonymous session → hydrate
+  useEffect(() => {
+    if (tab === "mesi") {
+      const t = new Date();
+      setMesiAnno(t.getFullYear());
+      setMesiMese(t.getMonth() + 1);
+    }
+  }, [tab]);
+
   useEffect(() => {
     (async () => {
       if (!isSupabaseConfigured) {
@@ -84,10 +97,22 @@ export default function App() {
   return (
     <PeriodProvider>
       <div className="min-h-screen pb-16">
-        {(tab === "mesi" || tab === "dashboard") && <PeriodPicker />}
+        {tab === "dashboard" && <PeriodPicker />}
+        {tab === "mesi" && (
+          <MonthNavigator
+            anno={mesiAnno}
+            mese={mesiMese}
+            onChange={(a, m) => {
+              setMesiAnno(a);
+              setMesiMese(m);
+            }}
+          />
+        )}
         <main key={`${tab}-${tick}`}>
           {tab === "dashboard" && <Dashboard />}
-          {tab === "mesi" && <MesiScreen />}
+          {tab === "mesi" && (
+            <MesiScreen anno={mesiAnno} mese={mesiMese} onChange={() => setTick((t) => t + 1)} />
+          )}
           {tab === "investimenti" && (
             <PatrimonioScreen onChange={() => setTick((t) => t + 1)} />
           )}
