@@ -1,0 +1,53 @@
+La verità dei fatti
+I file esistono eccome. Li ho appena verificati nel tuo progetto Replit, sono qui:
+
+artifacts/tangerine-app/supabase/functions/
+├── _shared/
+├── auth-pin-setup/
+├── auth-pin-verify/
+├── compute-anno/
+├── compute-mese/
+└── conguaglio-socio/
+
+L'altra IA ha confuso una cosa fondamentale: tu hai due "copie" del progetto in posti diversi:
+
+Su Replit (qui, dove parli con me): c'è la struttura completa monorepo con artifacts/tangerine-app/... e tutte le Edge Functions ✅
+Sul tuo Mac in ~/Desktop/Tangerine: c'è solo una vecchia copia "flat" (con src, public, index.html direttamente nella root) che probabilmente avevi creato all'inizio, prima che il progetto venisse riorganizzato in monorepo. Quella copia non contiene le Edge Functions.
+Quindi non c'è niente di "immaginario" — semplicemente il tuo Mac è disallineato rispetto alla versione vera del progetto.
+
+Soluzione vera (la più veloce di tutte)
+Fai il deploy direttamente dalla Shell di Replit. Tutti i file sono già qui, non devi scaricare nulla, non devi sincronizzare niente. Ecco i passi:
+
+1. Apri la Shell di Replit
+Nel pannello in alto qui su Replit, cerca il tab "Shell" (è un terminale identico a quello del tuo Mac, ma gira sul server di Replit dove i file ci sono davvero).
+
+2. Installa la Supabase CLI sulla Shell di Replit
+curl -fsSL https://github.com/supabase/cli/releases/latest/download/supabase_linux_amd64.tar.gz | tar -xz -C /tmp
+sudo mv /tmp/supabase /usr/local/bin/ 2>/dev/null || mv /tmp/supabase ~/supabase && export PATH=$HOME:$PATH
+supabase --version
+
+Se l'ultima riga dà errore "permission denied" su /usr/local/bin, usa solo:
+
+mkdir -p ~/bin && mv /tmp/supabase ~/bin/ && export PATH=$HOME/bin:$PATH
+supabase --version
+
+3. Login
+supabase login
+
+Ti darà un link, aprilo nel browser, copia il codice di verifica, incollalo nella Shell.
+
+4. Vai nella cartella giusta e linka il progetto
+cd artifacts/tangerine-app
+supabase link --project-ref hltqsophjzpofgvhgpjj
+
+(ti chiederà la password del database Supabase — la stessa di prima)
+
+5. Deploya
+supabase functions deploy
+
+Dovresti vedere "Deployed Function..." per tutte e 5 le funzioni.
+
+Alternativa (più lenta, sconsigliata)
+Se proprio vuoi farlo dal tuo Mac con Cursor, devi prima scaricare la versione aggiornata del progetto da GitHub/Replit sul tuo Mac (sostituendo la vecchia cartella ~/Desktop/Tangerine). Ma è inutile fare questo giro — la Shell di Replit è esattamente lo stesso tipo di terminale, e i file sono già lì.
+
+Fammi sapere quando hai fatto il primo passo (apertura della Shell + installazione CLI) e proseguiamo!

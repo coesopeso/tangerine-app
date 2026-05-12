@@ -1,0 +1,70 @@
+Last login: Tue May 12 16:42:47 on console
+ricco@MacBook-Pro-AUGU ~ % brew install supabase/tap/supabase
+==> Auto-updating Homebrew...
+Adjust how often this is run with `$HOMEBREW_AUTO_UPDATE_SECS` or disable with
+`$HOMEBREW_NO_AUTO_UPDATE=1`. Hide these hints with `$HOMEBREW_NO_ENV_HINTS=1` (see `man brew`).
+==> Auto-updated Homebrew!
+Updated 1 tap (homebrew/core).
+==> New Formulae
+arf: Modern R console with syntax highlighting and fuzzy search
+backplane-cli: CLI for interacting with the OpenShift Backplane API
+fallow: Codebase intelligence for TypeScript and JavaScript
+gascity: Orchestration-builder SDK for multi-agent coding workflows
+tinyice: Modern, all-in-one Icecast-compatible audio/video streaming server
+vcfanno: Annotate a VCF with other VCFs/BEDs/tabixed files
+
+You have 15 outdated formulae installed.
+
+==> Tapping supabase/tap
+Cloning into '/opt/homebrew/Library/Taps/supabase/homebrew-tap'...
+remote: Enumerating objects: 4798, done.
+remote: Counting objects: 100% (43/43), done.
+remote: Compressing objects: 100% (37/37), done.
+remote: Total 4798 (delta 18), reused 21 (delta 5), pack-reused 4755 (from 5)
+Receiving objects: 100% (4798/4798), 1.30 MiB | 13.76 MiB/s, done.
+Resolving deltas: 100% (1923/1923), done.
+Tapped 3 formulae (17 files, 1.5MB).
+==> Fetching downloads for: supabase
+✔︎ Formula supabase (2.98.2)                          Verified     28.7MB/ 28.7MB
+==> Installing supabase from supabase/tap
+Warning: A newer Command Line Tools release is available.
+Update them from Software Update in System Settings.
+
+If that doesn't show you any updates, run:
+  sudo rm -rf /Library/Developer/CommandLineTools
+  sudo xcode-select --install
+
+Alternatively, manually download them from:
+  https://developer.apple.com/download/all/.
+You should download the Command Line Tools for Xcode 26.3.
+
+
+
+This is a Tier 2 configuration:
+  https://docs.brew.sh/Support-Tiers#tier-2
+You can report issues with Tier 2 configurations to Homebrew/* repositories!
+Read the above document before opening any issues or PRs.
+
+🍺  /opt/homebrew/Cellar/supabase/2.98.2: 9 files, 93.0MB, built in 3 seconds
+==> Running `brew cleanup supabase`...
+Disable this behaviour by setting `HOMEBREW_NO_INSTALL_CLEANUP=1`.
+Hide these hints with `HOMEBREW_NO_ENV_HINTS=1` (see `man brew`).
+==> Caveats
+zsh completions have been installed to:
+  /opt/homebrew/share/zsh/site-functions
+ricco@MacBook-Pro-AUGU ~ % supabase login
+Hello from Supabase! Press Enter to open browser and login automatically.
+
+Here is your login link in case browser did not open https://supabase.com/dashboard/cli/login?session_id=1aa2c6f0-030c-4d06-b7e4-e4a37797733c&token_name=cli_ricco@MacBook-Pro-AUGU.local_1778610274&public_key=04f2c43aacb93c8712e9d0bc10b659448d1ade7de4b6f7d471a9fe3a35c4416e3f566ba95e789688790a68aedb3e90bebc5e635efc1c04b6c0639a72efec1c41d2
+
+Enter your verification code: 720b4fdc
+Token cli_ricco@MacBook-Pro-AUGU.local_1778610274 created successfully.
+
+You are now logged in. Happy coding!
+ricco@MacBook-Pro-AUGU ~ % cd Desktop/Tangerine
+ricco@MacBook-Pro-AUGU Tangerine % supabase link --project-ref hltqsophjzpofgvhgpjj
+Finished supabase link.
+ricco@MacBook-Pro-AUGU Tangerine % supabase functions deploy
+No Functions specified or found in supabase/functions
+Try rerunning the command with --debug to troubleshoot the error.
+ricco@MacBook-Pro-AUGU Tangerine % 
