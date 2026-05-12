@@ -39,37 +39,37 @@
   --radius-xl: calc(var(--radius) + 4px);
 }
 
-/* DARK = default Revolut as-built (UX_RULES.md v5.2) */
+/* DARK = palette di brand: nero puro + unico accento arancione.
+   Riferimento Tangerine v5.3 (vedi docs/UX_RULES.md):
+     bg #000000  surface #1A1A1A  border #333333
+     text #F9F9F9  muted #A7A7A7  dim #646464
+     accent #E85002 (Branding Orange)
+   Gradient eccezionale (solo 1 elemento hero) usato via .brand-gradient. */
 :root, .dark {
-  /* base hex from docs:
-     bg #0E0E14  surface #1A1A22  border #2A2A36
-     text #FAFAFA  text-2 #8B8B9E
-     accent #FFC048 (giallo Revolut)
-     success #00D9A0 info #4A9EFF warning #E84393 error #FF4D6D */
-  --background: 240 18% 7%;        /* #0E0E14 */
-  --foreground: 0 0% 98%;          /* #FAFAFA */
-  --card: 240 14% 12%;             /* #1A1A22 */
+  --background: 0 0% 0%;           /* #000000 */
+  --foreground: 0 0% 98%;          /* #F9F9F9 */
+  --card: 0 0% 10%;                /* #1A1A1A */
   --card-foreground: 0 0% 98%;
-  --card-border: 240 13% 19%;      /* #2A2A36 */
-  --popover: 240 14% 12%;
+  --card-border: 0 0% 20%;         /* #333333 */
+  --popover: 0 0% 10%;
   --popover-foreground: 0 0% 98%;
-  --popover-border: 240 13% 19%;
-  --border: 240 13% 19%;
-  --input: 240 13% 19%;
-  --ring: 41 100% 64%;             /* #FFC048 */
-  --primary: 41 100% 64%;          /* #FFC048 giallo Revolut */
-  --primary-foreground: 240 18% 7%;
-  --secondary: 240 14% 16%;
+  --popover-border: 0 0% 20%;
+  --border: 0 0% 20%;
+  --input: 0 0% 20%;
+  --ring: 20 99% 46%;              /* #E85002 */
+  --primary: 20 99% 46%;           /* #E85002 Branding Orange */
+  --primary-foreground: 0 0% 100%;
+  --secondary: 0 0% 14%;           /* #242424 */
   --secondary-foreground: 0 0% 98%;
-  --muted: 240 14% 14%;
-  --muted-foreground: 240 11% 58%; /* #8B8B9E */
-  --accent: 41 100% 64%;
-  --accent-foreground: 240 18% 7%;
-  --destructive: 350 100% 65%;     /* #FF4D6D */
-  --destructive-foreground: 0 0% 98%;
-  --success: 162 100% 43%;         /* #00D9A0 */
-  --info: 213 100% 64%;            /* #4A9EFF */
-  --warning: 327 78% 59%;          /* #E84393 */
+  --muted: 0 0% 12%;
+  --muted-foreground: 0 0% 65%;    /* #A7A7A7 */
+  --accent: 20 99% 46%;
+  --accent-foreground: 0 0% 100%;
+  --destructive: 0 73% 56%;        /* #DC4040 — soft red per importi negativi */
+  --destructive-foreground: 0 0% 100%;
+  --success: 142 65% 45%;          /* #2DAA5A — solo per importi positivi */
+  --info: 0 0% 65%;                /* niente blu, fallback grigio */
+  --warning: 36 100% 50%;          /* #FF9F00 — usato pochissimo */
 
   --app-font-sans: 'Inter', system-ui, -apple-system, sans-serif;
   --app-font-mono: 'JetBrains Mono', Menlo, monospace;
@@ -95,4 +95,8 @@
 @layer utilities {
   .safe-bottom { padding-bottom: env(safe-area-inset-bottom); }
   .glass { backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
+  /* Eccezione: usare al massimo su UN elemento hero della Dashboard. */
+  .brand-gradient {
+    background: linear-gradient(135deg, #000000 0%, #C10801 35%, #F16001 70%, #D9C3AB 100%);
+  }
 }
