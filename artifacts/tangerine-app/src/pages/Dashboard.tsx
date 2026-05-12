@@ -30,13 +30,13 @@ import {
 } from "recharts";
 import {
   TrendingUp, TrendingDown, Wallet, Landmark,
-  PiggyBank, AlertTriangle, Users, Receipt, Bell, Calendar,
+  PiggyBank, AlertTriangle, Users, Receipt, Bell, Calendar, Telescope,
 } from "lucide-react";
 import {
   getProfile, getTaxBucketIds,
   listAllocazioni, listCategorie, listFatture, listSecchielli, listSpese,
 } from "@/lib/storage";
-import { aggregaPeriodo, calcolaRiepilogoAnno, nomeMese } from "@/lib/fiscal";
+import { aggregaPeriodo, calcolaRiepilogoAnno, nomeMese, previsioneAnno } from "@/lib/fiscal";
 import { eur } from "@/lib/format";
 import { labelPeriodo, periodoPrecedente, usePeriod } from "@/lib/period";
 import type { Fattura, Spesa } from "@/lib/types";
@@ -94,6 +94,26 @@ export function Dashboard() {
     }
     return out;
   }, [profile, fatture, spese, allocazioni, taxBucketIds]);
+
+  // Previsione fine anno: la mostriamo per l'anno corrente reale, e anche
+  // quando il period è già posizionato sull'anno corrente o futuro. Per gli
+  // anni passati non ha senso (è già consuntivato).
+  const annoPrevisione = useMemo(() => {
+    const annoCorrente = new Date().getFullYear();
+    return Math.max(annoCorrente, period.anno);
+  }, [period.anno]);
+
+  const previsione = useMemo(() => {
+    if (!profile) return null;
+    return previsioneAnno(
+      annoPrevisione,
+      listFatture(),
+      listSpese(),
+      listAllocazioni(),
+      profile,
+      getTaxBucketIds(),
+    );
+  }, [profile, annoPrevisione]);
 
   if (!profile) return <Empty msg="Profilo non caricato" />;
   if (!aggCorr) return <Empty msg="Calcolo in corso…" />;
@@ -199,7 +219,62 @@ export function Dashboard() {
             </div>
           </section>
 
-          {/* 3 INDICATORI */}
+          {/* PREVISIONE FINE ANNO — intervallo basso↔alto */}
+          {previsione && (
+            <section className="md:col-span-2 glass-card rounded-2xl p-5">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2 text-xs uppercase tracking-widest text-muted-foreground">
+                  <Telescope className="w-4 h-4" /> Previsione {previsione.anno}
+                </div>
+                <div className="text-[10px] text-muted-foreground">
+                  {previsione.mesi_rimanenti > 0
+                    ? `${previsione.mesi_rimanenti} mes${previsione.mesi_rimanenti === 1 ? "e" : "i"} da stimare`
+                    : "anno già consuntivato"}
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <PrevisioneCard
+                  label="Netto Lordo a fine anno"
+                  basso={previsione.basso.netto_lordo}
+                  alto={previsione.alto.netto_lordo}
+                  tone="primary"
+                />
+                <PrevisioneCard
+                  label="Tax-safe a fine anno"
+                  basso={previsione.basso.tax_safe}
+                  alto={previsione.alto.tax_safe}
+                  tone="good"
+                />
+              </div>
+
+              {/* Imponibile vs soglia INPS — capisco se sforerò 18.415 */}
+              <div className="mt-4 rounded-xl bg-white/[0.03] border border-white/5 p-3">
+                <div className="flex items-center justify-between text-[11px] text-muted-foreground mb-1">
+                  <span>Imponibile previsto vs soglia INPS</span>
+                  <span className="tabular">soglia {eur(previsione.soglia_inps)}</span>
+                </div>
+                <div className="text-sm tabular">
+                  {eur(previsione.basso.imponibile)}{" "}
+                  <span className="text-muted-foreground">↔</span>{" "}
+                  {eur(previsione.alto.imponibile)}
+                </div>
+                <SogliaInpsHint
+                  basso={previsione.basso.imponibile}
+                  alto={previsione.alto.imponibile}
+                  soglia={previsione.soglia_inps}
+                />
+              </div>
+
+              <div className="mt-3 text-[10px] text-muted-foreground/70 leading-relaxed">
+                Basso = scenario prudente (mesi residui a metà media YTD).
+                Alto = scenario ottimista (media YTD piena). Include le entrate
+                e spese già programmate.
+              </div>
+            </section>
+          )}
+
+          {/* 3 INDICATORI CHIAVE — full-width su mobile, 3 col su desktop */}
           <section className="md:col-span-2 grid grid-cols-3 gap-3">
             <MetricCard
               label="Saving rate"
@@ -341,6 +416,62 @@ function ProgressBar({ pct }: { pct: number }) {
   return (
     <div className="h-2 rounded-full bg-white/5 overflow-hidden">
       <div className={`h-full ${tone} transition-all`} style={{ width: `${Math.min(100, pct)}%` }} />
+    </div>
+  );
+}
+
+function PrevisioneCard({
+  label, basso, alto, tone,
+}: {
+  label: string;
+  basso: number;
+  alto: number;
+  tone: "primary" | "good";
+}) {
+  const cls = tone === "good" ? "text-[hsl(var(--success))]" : "text-primary";
+  return (
+    <div className="rounded-xl bg-white/[0.03] border border-white/5 p-4">
+      <div className="text-[10px] uppercase tracking-wide text-muted-foreground">
+        {label}
+      </div>
+      <div className={`mt-1.5 text-2xl font-bold tabular ${cls}`}>
+        {eur(basso)}{" "}
+        <span className="text-muted-foreground text-base font-normal">↔</span>{" "}
+        {eur(alto)}
+      </div>
+      <div className="text-[10px] text-muted-foreground mt-1">
+        scenario prudente ↔ ottimista
+      </div>
+    </div>
+  );
+}
+
+function SogliaInpsHint({
+  basso, alto, soglia,
+}: {
+  basso: number;
+  alto: number;
+  soglia: number;
+}) {
+  if (alto <= soglia) {
+    return (
+      <div className="mt-1 text-[11px] text-[hsl(var(--success))] flex items-center gap-1">
+        Sotto la soglia in entrambi gli scenari.
+      </div>
+    );
+  }
+  if (basso > soglia) {
+    return (
+      <div className="mt-1 text-[11px] text-[hsl(var(--warning))] flex items-center gap-1">
+        <AlertTriangle className="w-3 h-3" />
+        Supererai la soglia: prevista eccedenza INPS in entrambi gli scenari.
+      </div>
+    );
+  }
+  return (
+    <div className="mt-1 text-[11px] text-[hsl(var(--warning))] flex items-center gap-1">
+      <AlertTriangle className="w-3 h-3" />
+      Soglia a rischio: la supererai solo nello scenario ottimista.
     </div>
   );
 }

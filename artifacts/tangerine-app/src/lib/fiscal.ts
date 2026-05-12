@@ -219,6 +219,187 @@ export function aggregaPeriodo(
   };
 }
 
+// ─── Previsione fine anno ───────────────────────────────────────
+//
+// Stima cosa resterà a fine anno fondendo tre componenti:
+//   1. YTD reale: fatture INCASSATO + spese EFFETTIVA dei mesi già passati
+//      (incluso il mese corrente).
+//   2. Programmate future: fatture in stato PROGRAMMATO/FATTURATO con
+//      data_incasso o data_scadenza_pagamento nei mesi rimanenti, e spese
+//      tipo PROGRAMMATA datate nei mesi rimanenti.
+//   3. Media YTD × moltiplicatore: per ciascun mese rimanente aggiunge un
+//      "incasso medio" (e una spesa media) derivati dalla media mensile YTD,
+//      con due moltiplicatori: 1.0 (alto/ottimista) e 0.5 (basso/prudente).
+//
+// Le allocazioni nei secchielli restano quelle reali — non vengono proiettate
+// (l'utente le pianifica esplicitamente). Il calcolo riusa
+// calcolaRiepilogoAnno() così la non-linearità dell'eccedenza INPS sopra il
+// minimale viene gestita correttamente in entrambi gli scenari.
+
+export interface PrevisioneScenario {
+  netto_lordo: number;
+  tax_safe: number;
+  imponibile: number;
+}
+
+export interface PrevisioneAnno {
+  anno: number;
+  mese_corrente: number;
+  mesi_rimanenti: number;
+  /** Soglia INPS minimale annua (copiata da profile, per comodità UI). */
+  soglia_inps: number;
+  basso: PrevisioneScenario;
+  alto: PrevisioneScenario;
+}
+
+export function previsioneAnno(
+  anno: number,
+  fatture: Fattura[],
+  spese: Spesa[],
+  allocazioni: AllocazioneSecchiello[],
+  profile: Profile,
+  taxBucketIds: ReadonlySet<string> = new Set(),
+  oggi: Date = new Date(),
+): PrevisioneAnno {
+  const annoCorrente = oggi.getFullYear();
+  // mese_corrente = ultimo mese "consuntivato" dal calendario reale.
+  // - anno passato: tutti i 12 mesi sono noti, nessuna media residua.
+  // - anno futuro: nessun mese consuntivato, tutta la previsione si basa su
+  //   programmate (la media YTD vale 0).
+  const mese_corrente =
+    anno < annoCorrente ? 12 : anno > annoCorrente ? 0 : oggi.getMonth() + 1;
+  const mesi_rimanenti = 12 - mese_corrente;
+
+  const profileAnno =
+    profile.anno_fiscale === anno ? profile : { ...profile, anno_fiscale: anno };
+
+  // Calcoliamo subito la media mensile YTD (solo dal reale incassato/speso),
+  // così possiamo fabbricare i mesi residui virtuali.
+  let ytd_piva = 0;
+  let ytd_priv = 0;
+  let ytd_spese = 0;
+  for (const f of fatture) {
+    if (f.stato !== "INCASSATO" || !f.data_incasso) continue;
+    const [y, m] = f.data_incasso.split("-").map(Number);
+    if (y === anno && m <= mese_corrente) {
+      if (f.tipo === "FATTURA_PIVA") ytd_piva += f.lordo;
+      else ytd_priv += f.lordo;
+    }
+  }
+  for (const s of spese) {
+    if (s.tipo !== "EFFETTIVA") continue;
+    const [y, m] = s.data.split("-").map(Number);
+    if (y === anno && m <= mese_corrente) ytd_spese += s.importo;
+  }
+  const denom = Math.max(1, mese_corrente);
+  const avg_piva = ytd_piva / denom;
+  const avg_priv = ytd_priv / denom;
+  const avg_spese = ytd_spese / denom;
+
+  function scenario(mult: number): PrevisioneScenario {
+    const fattureScen: Fattura[] = [];
+    const speseScen: Spesa[] = [];
+
+    // 1. YTD reale: già incassato/speso nei mesi 1..mese_corrente.
+    for (const f of fatture) {
+      if (f.stato === "INCASSATO" && f.data_incasso) {
+        const [y, m] = f.data_incasso.split("-").map(Number);
+        if (y === anno && m <= mese_corrente) fattureScen.push(f);
+      }
+    }
+    for (const s of spese) {
+      if (s.tipo === "EFFETTIVA") {
+        const [y, m] = s.data.split("-").map(Number);
+        if (y === anno && m <= mese_corrente) speseScen.push(s);
+      }
+    }
+
+    // 2. Programmate future: convertite in "incassi/spese virtuali" datati nel
+    // mese atteso, così che il motore le aggreghi normalmente.
+    for (const f of fatture) {
+      if (f.stato === "INCASSATO") continue;
+      const dataAttesa = f.data_incasso ?? f.data_scadenza_pagamento ?? null;
+      if (!dataAttesa) continue;
+      const [y, m] = dataAttesa.split("-").map(Number);
+      if (y === anno && m > mese_corrente) {
+        fattureScen.push({ ...f, stato: "INCASSATO", data_incasso: dataAttesa });
+      }
+    }
+    for (const s of spese) {
+      if (s.tipo !== "PROGRAMMATA") continue;
+      const [y, m] = s.data.split("-").map(Number);
+      if (y === anno && m > mese_corrente) {
+        speseScen.push({ ...s, tipo: "EFFETTIVA" });
+      }
+    }
+
+    // 3. Media YTD × mult per ogni mese rimanente. Si somma a quanto già
+    // programmato (i programmati sono entrate/spese specifiche; la media è
+    // il "rumore di fondo" di un mese tipico).
+    for (let m = mese_corrente + 1; m <= 12; m++) {
+      const data = `${anno}-${String(m).padStart(2, "0")}-15`;
+      if (avg_piva > 0) {
+        fattureScen.push({
+          id: `__prev_piva_${m}`,
+          descrizione: "previsione media YTD",
+          data_incasso: data,
+          lordo: avg_piva * mult,
+          tipo: "FATTURA_PIVA",
+          stato: "INCASSATO",
+          con_socio: false,
+        });
+      }
+      if (avg_priv > 0) {
+        fattureScen.push({
+          id: `__prev_priv_${m}`,
+          descrizione: "previsione media YTD",
+          data_incasso: data,
+          lordo: avg_priv * mult,
+          tipo: "ENTRATA_PRIVATA",
+          stato: "INCASSATO",
+          con_socio: false,
+        });
+      }
+      if (avg_spese > 0) {
+        speseScen.push({
+          id: `__prev_spesa_${m}`,
+          descrizione: "previsione media YTD",
+          data,
+          categoria_id: "",
+          importo: avg_spese * mult,
+          tipo: "EFFETTIVA",
+        });
+      }
+    }
+
+    const rows = calcolaRiepilogoAnno(
+      fattureScen,
+      speseScen,
+      allocazioni,
+      profileAnno,
+      taxBucketIds,
+    );
+    let netto_lordo = 0;
+    let tax_safe = 0;
+    let imponibile = 0;
+    for (const r of rows) {
+      netto_lordo += r.netto_lordo_mese;
+      tax_safe += r.tax_safe_mese;
+      imponibile += r.imponibile_mese;
+    }
+    return { netto_lordo, tax_safe, imponibile };
+  }
+
+  return {
+    anno,
+    mese_corrente,
+    mesi_rimanenti,
+    soglia_inps: profile.inps_minimale_annuo,
+    basso: scenario(0.5),
+    alto: scenario(1.0),
+  };
+}
+
 export function eur(v: number): string {
   return new Intl.NumberFormat("it-IT", {
     style: "currency",
