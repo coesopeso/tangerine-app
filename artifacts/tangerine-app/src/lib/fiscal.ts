@@ -8,6 +8,7 @@
  *   zavorra = 435.01, quota_socio_mese = 264.3498
  */
 import type { Fattura, Profile, RiepilogoMese, Spesa, AllocazioneSecchiello } from "./types";
+import { mesiInPeriodo, type Period, type MeseRef } from "./period";
 
 function inMese(dateIso: string | null | undefined, anno: number, mese: number): boolean {
   if (!dateIso) return false;
@@ -131,6 +132,91 @@ export function calcolaMese(
 ): RiepilogoMese {
   const anno = calcolaRiepilogoAnno(fatture, spese, allocazioni, profile, taxBucketIds);
   return anno[mese - 1];
+}
+
+/**
+ * Riepilogo aggregato su un Period (anche multi-anno o range custom).
+ * Internamente cachea il calcolo per anno una sola volta.
+ *
+ * `per_mese` è la sequenza ordinata dei mesi coperti, ognuno arricchito con
+ * `anno` per poter etichettare correttamente grafici e tabelle multi-anno.
+ */
+export interface RiepilogoMeseConAnno extends RiepilogoMese {
+  anno: number;
+}
+
+export interface AggregatoPeriodo {
+  refs: MeseRef[];
+  per_mese: RiepilogoMeseConAnno[];
+  fatturato_piva: number;
+  entrate_private: number;
+  imponibile: number;
+  tasse: number;
+  inps_fisso: number;
+  inps_eccedenza: number;
+  zavorra_fiscale: number;
+  netto_lordo: number;
+  spese_effettive: number;
+  alloc_tax: number;
+  alloc_discrezionali: number;
+  alloc_totali: number;
+  tax_safe: number;
+  saving_rate: number;
+  quota_socio: number;
+  /** imponibile_ytd al termine dell'ultimo mese del periodo (utile per soglia INPS). */
+  imponibile_ytd_fine: number;
+}
+
+export function aggregaPeriodo(
+  p: Period,
+  fatture: Fattura[],
+  spese: Spesa[],
+  allocazioni: AllocazioneSecchiello[],
+  profile: Profile,
+  taxBucketIds: ReadonlySet<string> = new Set(),
+): AggregatoPeriodo {
+  const refs = mesiInPeriodo(p);
+  const anniUnici = Array.from(new Set(refs.map((r) => r.anno)));
+  const cache = new Map<number, RiepilogoMese[]>();
+  for (const a of anniUnici) {
+    const profileScoped =
+      profile.anno_fiscale === a ? profile : { ...profile, anno_fiscale: a };
+    cache.set(
+      a,
+      calcolaRiepilogoAnno(fatture, spese, allocazioni, profileScoped, taxBucketIds),
+    );
+  }
+  const per_mese: RiepilogoMeseConAnno[] = refs.map(({ anno, mese }) => {
+    const r = cache.get(anno)![mese - 1];
+    return { ...r, anno };
+  });
+  const sum = (k: keyof RiepilogoMese): number =>
+    per_mese.reduce((s, r) => s + (r[k] as number), 0);
+  const fatturato_piva = sum("incassato_piva");
+  const entrate_private = sum("incassato_privato");
+  const totale_entrate = fatturato_piva + entrate_private;
+  const alloc_totali = sum("allocazioni_secchielli_mese");
+  const last = per_mese[per_mese.length - 1];
+  return {
+    refs,
+    per_mese,
+    fatturato_piva,
+    entrate_private,
+    imponibile: sum("imponibile_mese"),
+    tasse: sum("tasse_mese"),
+    inps_fisso: sum("inps_fisso_mese"),
+    inps_eccedenza: sum("inps_eccedenza_mese"),
+    zavorra_fiscale: sum("zavorra_fiscale_mese"),
+    netto_lordo: sum("netto_lordo_mese"),
+    spese_effettive: sum("spese_effettive_mese"),
+    alloc_tax: sum("allocazioni_tax_mese"),
+    alloc_discrezionali: sum("allocazioni_discrezionali_mese"),
+    alloc_totali,
+    tax_safe: sum("tax_safe_mese"),
+    saving_rate: totale_entrate > 0 ? alloc_totali / totale_entrate : 0,
+    quota_socio: sum("quota_socio_mese"),
+    imponibile_ytd_fine: last ? last.imponibile_ytd : 0,
+  };
 }
 
 export function eur(v: number): string {

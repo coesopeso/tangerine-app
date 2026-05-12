@@ -2,15 +2,15 @@ import { useEffect, useState } from "react";
 import { ensureAnonymousSession, isPinSet, isUnlocked } from "@/lib/auth";
 import { hydrate, isOnboarded, subscribe } from "@/lib/storage";
 import { isSupabaseConfigured } from "@/lib/supabase";
+import { PeriodProvider } from "@/lib/period";
 import { PinScreen } from "@/pages/PinScreen";
 import { OnboardingWizard } from "@/pages/OnboardingWizard";
 import { Dashboard } from "@/pages/Dashboard";
 import { MesiScreen } from "@/pages/MesiScreen";
-import { FiscoScreen } from "@/pages/FiscoScreen";
 import { PatrimonioScreen } from "@/pages/PatrimonioScreen";
 import { ImpostazioniScreen } from "@/pages/ImpostazioniScreen";
 import { SetupScreen } from "@/pages/SetupScreen";
-import { MonthNavigator } from "@/components/MonthNavigator";
+import { PeriodPicker } from "@/components/PeriodPicker";
 import { TabBar, type TabKey } from "@/components/TabBar";
 import { QuickAddSheet } from "@/components/QuickAddSheet";
 
@@ -19,9 +19,6 @@ type Phase = "BOOT" | "SETUP" | "PIN" | "ONBOARD" | "APP";
 export default function App() {
   const [phase, setPhase] = useState<Phase>("BOOT");
   const [bootError, setBootError] = useState<string | null>(null);
-  const today = new Date();
-  const [anno, setAnno] = useState(today.getFullYear());
-  const [mese, setMese] = useState(today.getMonth() + 1);
   const [tab, setTab] = useState<TabKey>("dashboard");
   const [addOpen, setAddOpen] = useState(false);
   const [tick, setTick] = useState(0);
@@ -85,31 +82,24 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen pb-16">
-      {tab === "mesi" || tab === "dashboard" ? (
-        <MonthNavigator anno={anno} mese={mese} onChange={(a, m) => { setAnno(a); setMese(m); }} />
-      ) : null}
-      <main key={`${tab}-${tick}`}>
-        {tab === "dashboard" && (
-          <>
-            <Dashboard anno={anno} mese={mese} />
-            <FiscoScreen anno={anno} refreshKey={tick} />
-          </>
-        )}
-        {tab === "mesi" && (
-          <MesiScreen anno={anno} mese={mese} onChange={() => setTick((t) => t + 1)} />
-        )}
-        {tab === "investimenti" && (
-          <PatrimonioScreen onChange={() => setTick((t) => t + 1)} />
-        )}
-        {tab === "impostazioni" && <ImpostazioniScreen />}
-      </main>
-      <TabBar active={tab} onChange={setTab} onAdd={() => setAddOpen(true)} />
-      <QuickAddSheet
-        open={addOpen}
-        onClose={() => setAddOpen(false)}
-        onSaved={() => setTick((t) => t + 1)}
-      />
-    </div>
+    <PeriodProvider>
+      <div className="min-h-screen pb-16">
+        {(tab === "mesi" || tab === "dashboard") && <PeriodPicker />}
+        <main key={`${tab}-${tick}`}>
+          {tab === "dashboard" && <Dashboard />}
+          {tab === "mesi" && <MesiScreen />}
+          {tab === "investimenti" && (
+            <PatrimonioScreen onChange={() => setTick((t) => t + 1)} />
+          )}
+          {tab === "impostazioni" && <ImpostazioniScreen />}
+        </main>
+        <TabBar active={tab} onChange={setTab} onAdd={() => setAddOpen(true)} />
+        <QuickAddSheet
+          open={addOpen}
+          onClose={() => setAddOpen(false)}
+          onSaved={() => setTick((t) => t + 1)}
+        />
+      </div>
+    </PeriodProvider>
   );
 }
