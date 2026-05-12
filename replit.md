@@ -9,7 +9,28 @@ _Replace the heading above with the project's name, and this line with one sente
 - `pnpm run build` — typecheck + build all packages
 - `pnpm --filter @workspace/api-spec run codegen` — regenerate API hooks and Zod schemas from the OpenAPI spec
 - `pnpm --filter @workspace/db run push` — push DB schema changes (dev only)
+- `node scripts/check-supabase.mjs` — verify Supabase connectivity (read + write probe) for Augusto's project
 - Required env: `DATABASE_URL` — Postgres connection string
+
+### Supabase secrets (Augusto's database)
+
+The real app code lives in the GitHub repo `coesopeso/tangerine-app` and talks
+to a Supabase project hosted at `hltqsophjzpofgvhgpjj.supabase.co`. The three
+credentials needed to reach it are stored in Replit Secrets — never commit
+them:
+
+- `VITE_SUPABASE_URL` — project URL, exposed to the browser bundle
+- `VITE_SUPABASE_ANON_KEY` — public "anon" key, used by the browser app
+- `SUPABASE_SERVICE_ROLE_KEY` — server-side key with full DB access (Edge
+  Functions, migrations, admin scripts only — never ship to the browser)
+
+After populating those secrets, run `node scripts/check-supabase.mjs` to
+confirm connectivity. The script lists all tables in the `public` schema with
+row counts, then performs an insert/read/delete probe against `categorie` and
+cleans up after itself. Confirmed on 2026-05-12: read + write OK; the 6 tables
+present (`fiscal_config`, `categorie`, `uscite`, `entrate`,
+`obiettivi_secchielli`, `secchielli`) hold only test data and the user has
+authorized dropping them when the v5.2 schema migration runs.
 
 ## Stack
 
