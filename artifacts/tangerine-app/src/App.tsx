@@ -5,9 +5,10 @@ import { isSupabaseConfigured } from "@/lib/supabase";
 import { PinScreen } from "@/pages/PinScreen";
 import { OnboardingWizard } from "@/pages/OnboardingWizard";
 import { DashboardCasa } from "@/pages/DashboardCasa";
-import { SpeseList } from "@/pages/SpeseList";
+import { MesiScreen } from "@/pages/MesiScreen";
 import { FiscoScreen } from "@/pages/FiscoScreen";
 import { PatrimonioScreen } from "@/pages/PatrimonioScreen";
+import { ImpostazioniScreen } from "@/pages/ImpostazioniScreen";
 import { SetupScreen } from "@/pages/SetupScreen";
 import { MonthNavigator } from "@/components/MonthNavigator";
 import { TabBar, type TabKey } from "@/components/TabBar";
@@ -21,7 +22,7 @@ export default function App() {
   const today = new Date();
   const [anno, setAnno] = useState(today.getFullYear());
   const [mese, setMese] = useState(today.getMonth() + 1);
-  const [tab, setTab] = useState<TabKey>("casa");
+  const [tab, setTab] = useState<TabKey>("dashboard");
   const [addOpen, setAddOpen] = useState(false);
   const [tick, setTick] = useState(0);
 
@@ -85,12 +86,28 @@ export default function App() {
 
   return (
     <div className="min-h-screen pb-16">
-      <MonthNavigator anno={anno} mese={mese} onChange={(a, m) => { setAnno(a); setMese(m); }} />
+      {tab === "mesi" || tab === "dashboard" ? (
+        <MonthNavigator anno={anno} mese={mese} onChange={(a, m) => { setAnno(a); setMese(m); }} />
+      ) : null}
       <main key={`${tab}-${tick}`}>
-        {tab === "casa" && <DashboardCasa anno={anno} mese={mese} refreshKey={tick} />}
-        {tab === "spese" && <SpeseList anno={anno} mese={mese} onChange={() => setTick((t) => t + 1)} />}
-        {tab === "fisco" && <FiscoScreen anno={anno} refreshKey={tick} />}
-        {tab === "patrimonio" && <PatrimonioScreen onChange={() => setTick((t) => t + 1)} />}
+        {tab === "dashboard" && (
+          <>
+            <div className="px-4 pt-3">
+              <div className="rounded-xl border border-dashed border-card-border bg-card/40 px-3 py-2 text-xs text-muted-foreground">
+                Dashboard annuale in arrivo. Per ora trovi qui i dati del mese e il fisco annuo.
+              </div>
+            </div>
+            <DashboardCasa anno={anno} mese={mese} refreshKey={tick} />
+            <FiscoScreen anno={anno} refreshKey={tick} />
+          </>
+        )}
+        {tab === "mesi" && (
+          <MesiScreen anno={anno} mese={mese} onChange={() => setTick((t) => t + 1)} />
+        )}
+        {tab === "investimenti" && (
+          <PatrimonioScreen onChange={() => setTick((t) => t + 1)} />
+        )}
+        {tab === "impostazioni" && <ImpostazioniScreen />}
       </main>
       <TabBar active={tab} onChange={setTab} onAdd={() => setAddOpen(true)} />
       <QuickAddSheet
