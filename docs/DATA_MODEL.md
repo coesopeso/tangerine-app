@@ -1,0 +1,270 @@
+# 🗃 DATA_MODEL — Tangerine PWA v5.1
+
+> Schema DB completo. Nomi `snake_case` inglese. Etichette UI italiano. Drizzle + Postgres.
+
+---
+
+## 📋 TABELLE
+
+### `profile` — Configurazione utente (record singolo)
+
+| Campo | Tipo | Default | Descrizione |
+|---|---|---|---|
+| `anno_fiscale` | int | 2026 | Anno corrente. Cambia → tutto il sistema riparte. |
+| `coefficiente_redditivita` | numeric | 0.78 | ATECO: 0.40 / 0.54 / 0.62 / 0.67 / 0.73 / 0.78 / 0.86 |
+| `aliquota_imposta` | numeric | 0.05 | 0.05 (5% startup) o 0.15 (15% standard) |
+| `tipo_inps` | enum | `COMMERCIANTE` | `COMMERCIANTE` o `GESTIONE_SEPARATA` |
+| `inps_minimale_annuo` | numeric | 18808.00 | Soglia INPS Commercianti. Aggiornare ogni anno. |
+| `inps_fisso_mensile` | numeric | 376.78 | Quota fissa mensile Commercianti. |
+| `inps_aliquota_eccedenza` | numeric | 0.24 | Aliquota su eccedenza Commercianti. |
+| `inps_aliquota_gs` | numeric | 0.2607 | Aliquota Gestione Separata (0.2607 con altra copertura, 0.24 sola GS). |
+| `liquidita_iniziale` | numeric | 0 | Punto Zero anno fiscale. |
+| `investimenti_iniziali` | numeric | 0 | Punto Zero investimenti. |
+| `pac_mensile_automatico` | numeric | 0 | Quota PAC automatica. |
+| `cuscinetto_mensile_automatico` | numeric | 0 | Quota fondo emergenza automatica. |
+| `partner_aliquota_default` | numeric | 0.26 | Forfait socio (override per fattura). |
+| `tema` | enum | `AUTO` | `LIGHT` / `DARK` / `AUTO` |
+| `created_at` | timestamp | now() | |
+| `updated_at` | timestamp | now() | |
+
+---
+
+### `cliente` — Anagrafica
+
+| Campo | Tipo | Descrizione |
+|---|---|---|
+| `id` | uuid | PK |
+| `nome` | text | Es. "Studio Rossi" |
+| `partita_iva` | text | Opzionale |
+| `codice_fiscale` | text | Opzionale |
+| `email` | text | Opzionale |
+| `telefono` | text | Opzionale |
+| `note` | text | Libero |
+| `attivo` | boolean | TRUE default. FALSE = nascosto da dropdown ma storico preservato |
+| `created_at` | timestamp | |
+
+**Vista calcolata `cliente_stats`**: `fatturato_ytd`, `fatturato_anno_precedente`, `numero_fatture_ytd`, `ultima_fattura_data`, `ultima_fattura_lordo`, `delta_vs_ultima_pct`.
+
+---
+
+### `fattura` — Entrate da P.IVA
+
+| Campo | Tipo | Descrizione |
+|---|---|---|
+| `id` | uuid | PK |
+| `cliente_id` | uuid? | FK `cliente`. Nullable per casi una tantum. |
+| `numero_fattura` | text | Opzionale (es. "2026/042") |
+| `data_emissione` | date | |
+| `data_scadenza_pagamento` | date | |
+| `data_incasso` | date? | NULL se non ancora pagato |
+| `descrizione` | text | |
+| `lordo` | numeric | |
+| `stato` | enum | `PROGRAMMATO` / `EMESSO_DA_INCASSARE` / `INCASSATO` |
+| `has_partner` | boolean | TRUE se da smezzare con socio |
+| `partner_aliquota` | numeric | Override aliquota socio |
+| `note` | text | |
+| `created_at` | timestamp | |
+
+**Stati**:
+- `PROGRAMMATO` — prevista, non emessa
+- `EMESSO_DA_INCASSARE` — emessa, non pagata
+- `INCASSATO` — pagata. **Solo qui scattano accantonamenti fiscali.**
+- `IN_RITARDO` — calcolato runtime: `EMESSO_DA_INCASSARE` AND `data_scadenza < oggi`. Non salvato.
+
+> **Importante**: accrual fiscali NON salvati per riga. Ricalcolati on-the-fly. Vedi `FISCAL_ENGINE.md`.
+
+---
+
+### `entrata_netta` — Entrate esentasse
+
+Vendite usato, regali, rimborsi, refund. **Non generano accantonamento tasse né INPS variabile**. INPS fisso (Commerciante) resta dovuto.
+
+| Campo | Tipo | Descrizione |
+|---|---|---|
+| `id` | uuid | PK |
+| `data` | date | |
+| `voce` | text | |
+| `importo_netto` | numeric | |
+| `categoria` | text | `VENDITA_USATO` / `REGALO` / `RIMBORSO` / `REFUND` / `ALTRO` |
+| `note` | text | |
+| `created_at` | timestamp | |
+
+---
+
+### `spesa` — Uscite
+
+| Campo | Tipo | Descrizione |
+|---|---|---|
+| `id` | uuid | PK |
+| `data` | date | |
+| `categoria_id` | uuid | FK `categoria` |
+| `sottocategoria_id` | uuid? | FK `sottocategoria` |
+| `importo` | numeric | Sempre positivo |
+| `tipo` | enum | `EFFETTIVA` / `PROGRAMMATA` |
+| `descrizione` | text | |
+| `note` | text | |
+| `created_at` | timestamp | |
+
+---
+
+### `categoria` — Categorie spese (CRUD)
+
+| Campo | Tipo | Descrizione |
+|---|---|---|
+| `id` | uuid | PK |
+| `nome` | text | Es. "BUSINESS", "AUTO", "VITA", "SVAGO", "INVESTIMENTO", "FORMAZIONE", "SALUTE" |
+| `colore_hex` | text | Es. "#3B82F6" |
+| `icona` | text | Nome icona Lucide (es. "Briefcase") |
+| `ordine` | int | Per ordinamento UI |
+| `attiva` | boolean | FALSE = nascosta in dropdown, spese storiche preservate |
+
+**Seed iniziale**: 7 categorie default — vedi `MIGRATION.md`.
+
+---
+
+### `sottocategoria`
+
+| Campo | Tipo | Descrizione |
+|---|---|---|
+| `id` | uuid | PK |
+| `categoria_id` | uuid | FK |
+| `nome` | text | |
+| `attiva` | boolean | |
+
+---
+
+### `secchiello` — Risparmio finalizzato (CRUD)
+
+| Campo | Tipo | Descrizione |
+|---|---|---|
+| `id` | uuid | PK |
+| `nome` | text | Es. "Vacanza Giappone" |
+| `colore_hex` | text | |
+| `icona` | text | |
+| `target_importo` | numeric? | OPZIONALE |
+| `target_data` | date? | OPZIONALE |
+| `archiviato` | boolean | TRUE = obiettivo raggiunto/abbandonato |
+| `created_at` | timestamp | |
+
+**Vista `secchiello_stats`**: `accumulato_totale`, `progresso_pct` (se ha target), `quota_mensile_suggerita` (se target+data).
+
+---
+
+### `allocazione_secchiello`
+
+| Campo | Tipo | Descrizione |
+|---|---|---|
+| `id` | uuid | PK |
+| `secchiello_id` | uuid | FK |
+| `mese` | date | Primo del mese |
+| `importo` | numeric | |
+| `nota` | text | |
+
+---
+
+### `pac_dettaglio` — PAC con tracking costi
+
+Vedi `INVESTMENTS.md` per esempi completi popolati (Mediolanum Cina/India).
+
+| Campo | Tipo | Descrizione |
+|---|---|---|
+| `id` | uuid | PK |
+| `nome` | text | Breve es. "Mediolanum Cina" |
+| `nome_completo` | text | Es. "Mediolanum Chinese Road Opportunity L" |
+| `isin` | text | Es. "IE00BJYLJ716" |
+| `emittente` | text | |
+| `categoria_morningstar` | text | |
+| `data_apertura` | date | |
+| `versamento_mensile` | numeric | Quota PAC mensile |
+| `versato_totale` | numeric | |
+| `investito_netto` | numeric | Versato − costi ingresso |
+| `quote_possedute` | numeric | |
+| `prezzo_medio_carico` | numeric | |
+| `prezzo_quota_corrente` | numeric | |
+| `data_aggiornamento_prezzo` | date | |
+| `costo_ingresso_pct` | numeric | Es. 0.03 (3%) |
+| `ter_annuo_pct` | numeric | Total Expense Ratio annuo |
+| `sri_rischio` | int | 1-7 |
+| `tipo_quote` | enum | `ACCUMULAZIONE` / `DISTRIBUZIONE` |
+| `note` | text | |
+| `archiviato` | boolean | |
+
+**Calcoli derivati on-the-fly** (formule in `INVESTMENTS.md`).
+
+---
+
+### `investimento` — Asset diversi dai PAC
+
+| Campo | Tipo | Descrizione |
+|---|---|---|
+| `id` | uuid | PK |
+| `tipo` | enum | `ETF` / `CRYPTO` / `AZIONE` / `OBBLIGAZIONE` / `ALTRO` |
+| `nome` | text | |
+| `ticker` | text | Opzionale |
+| `quantita` | numeric | |
+| `prezzo_medio_carico` | numeric | |
+| `prezzo_corrente` | numeric | |
+| `data_aggiornamento_prezzo` | date | |
+| `note` | text | |
+| `archiviato` | boolean | |
+
+---
+
+### `scadenza_fiscale` — Calendario
+
+Vedi `CALENDAR.md` per dettaglio scadenze pre-popolate.
+
+| Campo | Tipo | Descrizione |
+|---|---|---|
+| `id` | uuid | PK |
+| `tipo` | enum | `SALDO_IRPEF` / `ACCONTO_IRPEF_1` / `ACCONTO_IRPEF_2` / `INPS_TRIM` / `INPS_ECCEDENZA` / `IVA` / `CCIAA` / `ALTRO` |
+| `data_scadenza` | date | |
+| `descrizione` | text | |
+| `importo_dovuto` | numeric | |
+| `importo_pagato` | numeric | 0 finché non pagato |
+| `data_pagamento` | date? | |
+| `note` | text | |
+
+**Stati derivati**: `PAGATA` / `SCADUTA` / `URGENTE` (≤7gg) / `IN_AVVICINAMENTO` (≤30gg) / `FUTURA`.
+
+---
+
+## 🔠 ENUM
+
+```typescript
+stato_fattura:    PROGRAMMATO | EMESSO_DA_INCASSARE | INCASSATO
+tipo_spesa:       EFFETTIVA | PROGRAMMATA
+tipo_inps:        COMMERCIANTE | GESTIONE_SEPARATA
+tipo_investimento: ETF | CRYPTO | AZIONE | OBBLIGAZIONE | ALTRO
+tipo_scadenza:    SALDO_IRPEF | ACCONTO_IRPEF_1 | ACCONTO_IRPEF_2 |
+                  INPS_TRIM | INPS_ECCEDENZA | IVA | CCIAA | ALTRO
+tipo_quote_pac:   ACCUMULAZIONE | DISTRIBUZIONE
+tema:             LIGHT | DARK | AUTO
+categoria_entrata_netta: VENDITA_USATO | REGALO | RIMBORSO | REFUND | ALTRO
+```
+
+---
+
+## 🚨 REGOLE DI INTEGRITÀ
+
+- **Soft delete obbligatorio** dove esiste storico: `cliente.attivo`, `categoria.attiva`, `sottocategoria.attiva`, `secchiello.archiviato`, `pac_dettaglio.archiviato`, `investimento.archiviato`. **Mai hard delete** se ha record collegati.
+- **Cascade**: solo per `allocazione_secchiello` quando il secchiello viene veramente eliminato (raro, solo se 0 allocazioni).
+- **FK obbligatorie** validate via Zod prima di toccare DB.
+- **Numeric**: usare `numeric(12, 2)` per importi euro.
+- **Indici** consigliati: `fattura(data_incasso, stato)`, `spesa(data, categoria_id)`, `allocazione_secchiello(secchiello_id, mese)`.
+
+---
+
+## 🔗 DOCUMENTI CORRELATI
+
+- Calcoli fiscali su questi dati: `FISCAL_ENGINE.md`
+- Endpoint che li espongono: `API.md`
+- Esempi PAC popolati: `INVESTMENTS.md`
+
+---
+
+## VERSION
+
+```
+v5.1 — Modello esteso: clienti, pac_dettaglio con costi, secchielli con target, CRUD totale
+```
