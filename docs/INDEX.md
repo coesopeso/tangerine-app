@@ -11,6 +11,20 @@
 
 ---
 
+## 🚦 Stato migrazione v5.2
+
+| Area | Stato |
+|---|---|
+| Allineamento docs (questa cartella `docs/`) | ✅ DONE — v5.2 completa, fonte di verità aggiornata |
+| Schema DB Supabase con RLS + seed Augusto | ⏳ TODO — bozza in TASKS.md, da eseguire in task dedicato |
+| Refactor `App.tsx` in moduli + PIN auth + wizard onboarding | ⏳ TODO |
+| Motore fiscale corretto in Edge Function `compute-mese` | ⏳ TODO |
+| Deploy Vercel multi-device | ⏳ TODO |
+
+> Tradotto: i docs descrivono lo stato target. Il repo `coesopeso/tangerine-app` oggi è ancora la bozza pre-v5.2 (App.tsx monolitico, 4 tabelle test, niente PIN, motore fiscale semplificato). Vedi `docs/ROADMAP.md` Sprint 1 per la sequenza dei task di realign.
+
+---
+
 ## 🗂 Struttura documentale
 
 | File | Quando aprirlo | Token approx |
