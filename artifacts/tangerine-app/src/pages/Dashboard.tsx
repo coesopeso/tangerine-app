@@ -376,6 +376,16 @@ export function Dashboard() {
             <CategorieTable refsSet={refsSet} categorie={categorie} spese={spese} />
           </section>
 
+          {/* ENTRATE — tabella completa per mese */}
+          <section className="md:col-span-2">
+            <EntrateTable fatture={fatture} refsSet={refsSet} />
+          </section>
+
+          {/* SPESE — tabella completa per mese */}
+          <section className="md:col-span-2">
+            <SpeseTable spese={spese} categorie={categorie} refsSet={refsSet} />
+          </section>
+
           {/* SCADENZE — sezione always-on, INDIPENDENTE dal periodo */}
           <section className="md:col-span-2">
             <Scadenze fatture={fatture} spese={spese} />
@@ -763,6 +773,258 @@ function CategorieTable({
           </div>
         )}
       </div>
+    </div>
+  );
+}
+
+// ─── Entrate: tabella completa per mese ───────────────────────
+
+function EntrateTable({
+  fatture, refsSet,
+}: {
+  fatture: Fattura[];
+  refsSet: Set<string>;
+}) {
+  // Tutte le fatture (P.IVA + private) il cui mese di riferimento ricade
+  // nel periodo. Per le INCASSATO usiamo data_incasso; per le altre
+  // usiamo data_emissione o data_scadenza_pagamento come fallback.
+  const items = fatture
+    .map((f) => {
+      const dateRef =
+        f.data_incasso || f.data_emissione || f.data_scadenza_pagamento || null;
+      if (!dateRef) return null;
+      const [y, m] = dateRef.split("-").map(Number);
+      if (!y || !m || !refsSet.has(`${y}-${m}`)) return null;
+      return { f, dateRef, y, m };
+    })
+    .filter((x): x is { f: Fattura; dateRef: string; y: number; m: number } => !!x)
+    .sort((a, b) => b.dateRef.localeCompare(a.dateRef));
+
+  // Raggruppa per "anno-mese"
+  const groups = new Map<string, typeof items>();
+  for (const it of items) {
+    const k = `${it.y}-${String(it.m).padStart(2, "0")}`;
+    const arr = groups.get(k) ?? [];
+    arr.push(it);
+    groups.set(k, arr);
+  }
+
+  const totaleGen = items.reduce((s, x) => s + Number(x.f.lordo), 0);
+
+  return (
+    <div className="glass-card rounded-2xl p-4">
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-2">
+          <TrendingUp className="w-4 h-4 text-[hsl(var(--success))]" />
+          <div className="text-[11px] uppercase tracking-wide text-muted-foreground">
+            Entrate del periodo
+          </div>
+        </div>
+        <div className="text-[10px] text-muted-foreground tabular">
+          {items.length} fatture · totale {eur(totaleGen)}
+        </div>
+      </div>
+      {items.length === 0 ? (
+        <div className="text-xs text-muted-foreground text-center py-4">
+          Nessuna entrata nel periodo selezionato
+        </div>
+      ) : (
+        <div className="max-h-[480px] overflow-y-auto -mx-1 px-1">
+          {Array.from(groups.entries()).map(([k, rows]) => {
+            const [y, m] = k.split("-").map(Number);
+            const tot = rows.reduce((s, x) => s + Number(x.f.lordo), 0);
+            return (
+              <div key={k} className="mb-3 last:mb-0">
+                <div className="sticky top-0 z-10 -mx-1 px-1 py-1 bg-[hsl(var(--background))]/90 backdrop-blur flex items-center justify-between text-[10px] uppercase tracking-wide">
+                  <span className="text-muted-foreground font-semibold">
+                    {nomeMese(m)} {y}
+                  </span>
+                  <span className="text-[hsl(var(--success))] tabular">{eur(tot)}</span>
+                </div>
+                <table className="w-full text-xs">
+                  <thead>
+                    <tr className="text-muted-foreground/70 text-[10px]">
+                      <th className="text-left font-normal py-1 pr-2 w-14">Data</th>
+                      <th className="text-left font-normal py-1 pr-2">Cliente / descrizione</th>
+                      <th className="text-left font-normal py-1 pr-2 hidden sm:table-cell w-20">Tipo</th>
+                      <th className="text-left font-normal py-1 pr-2 hidden sm:table-cell w-20">Stato</th>
+                      <th className="text-center font-normal py-1 pr-2 hidden sm:table-cell w-12">Socio</th>
+                      <th className="text-right font-normal py-1 w-24">Lordo</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {rows.map(({ f, dateRef }) => (
+                      <tr key={f.id} className="border-t border-white/5">
+                        <td className="py-1.5 pr-2 tabular text-muted-foreground">
+                          {formatItDate(dateRef)}
+                        </td>
+                        <td className="py-1.5 pr-2 truncate max-w-[140px] sm:max-w-none">
+                          <div className="truncate">{f.descrizione || "—"}</div>
+                          {f.numero_fattura && (
+                            <div className="text-[9px] text-muted-foreground">#{f.numero_fattura}</div>
+                          )}
+                        </td>
+                        <td className="py-1.5 pr-2 hidden sm:table-cell">
+                          <span
+                            className={`text-[9px] uppercase tracking-wide px-1.5 py-0.5 rounded ${
+                              f.tipo === "FATTURA_PIVA"
+                                ? "bg-primary/15 text-primary"
+                                : "bg-white/5 text-muted-foreground"
+                            }`}
+                          >
+                            {f.tipo === "FATTURA_PIVA" ? "P.IVA" : "Privato"}
+                          </span>
+                        </td>
+                        <td className="py-1.5 pr-2 hidden sm:table-cell">
+                          <span
+                            className={`text-[9px] uppercase tracking-wide ${
+                              f.stato === "INCASSATO"
+                                ? "text-[hsl(var(--success))]"
+                                : f.stato === "FATTURATO"
+                                ? "text-[hsl(var(--warning))]"
+                                : "text-muted-foreground"
+                            }`}
+                          >
+                            {f.stato === "INCASSATO" ? "incassata" : f.stato === "FATTURATO" ? "emessa" : "programmata"}
+                          </span>
+                        </td>
+                        <td className="py-1.5 pr-2 text-center hidden sm:table-cell">
+                          {f.con_socio ? (
+                            <span className="text-[10px] text-muted-foreground">●</span>
+                          ) : (
+                            <span className="text-[10px] text-muted-foreground/30">○</span>
+                          )}
+                        </td>
+                        <td className="py-1.5 text-right font-semibold tabular text-[hsl(var(--success))]">
+                          {eur(Number(f.lordo))}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Spese: tabella completa per mese ─────────────────────────
+
+function SpeseTable({
+  spese, categorie, refsSet,
+}: {
+  spese: Spesa[];
+  categorie: { id: string; nome: string; colore_hex: string }[];
+  refsSet: Set<string>;
+}) {
+  const cats = new Map(categorie.map((c) => [c.id, c]));
+  const items = spese
+    .filter((s) => {
+      const [y, m] = s.data.split("-").map(Number);
+      return refsSet.has(`${y}-${m}`);
+    })
+    .sort((a, b) => b.data.localeCompare(a.data));
+
+  const groups = new Map<string, typeof items>();
+  for (const s of items) {
+    const [y, m] = s.data.split("-");
+    const k = `${y}-${m}`;
+    const arr = groups.get(k) ?? [];
+    arr.push(s);
+    groups.set(k, arr);
+  }
+
+  const totaleGen = items.reduce((s, x) => s + Number(x.importo), 0);
+
+  return (
+    <div className="glass-card rounded-2xl p-4">
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-2">
+          <Receipt className="w-4 h-4 text-destructive" />
+          <div className="text-[11px] uppercase tracking-wide text-muted-foreground">
+            Spese del periodo
+          </div>
+        </div>
+        <div className="text-[10px] text-muted-foreground tabular">
+          {items.length} voci · totale {eur(totaleGen)}
+        </div>
+      </div>
+      {items.length === 0 ? (
+        <div className="text-xs text-muted-foreground text-center py-4">
+          Nessuna spesa nel periodo selezionato
+        </div>
+      ) : (
+        <div className="max-h-[480px] overflow-y-auto -mx-1 px-1">
+          {Array.from(groups.entries()).map(([k, rows]) => {
+            const [y, m] = k.split("-").map(Number);
+            const tot = rows.reduce((s, x) => s + Number(x.importo), 0);
+            return (
+              <div key={k} className="mb-3 last:mb-0">
+                <div className="sticky top-0 z-10 -mx-1 px-1 py-1 bg-[hsl(var(--background))]/90 backdrop-blur flex items-center justify-between text-[10px] uppercase tracking-wide">
+                  <span className="text-muted-foreground font-semibold">
+                    {nomeMese(m)} {y}
+                  </span>
+                  <span className="text-destructive tabular">{eur(tot)}</span>
+                </div>
+                <table className="w-full text-xs">
+                  <thead>
+                    <tr className="text-muted-foreground/70 text-[10px]">
+                      <th className="text-left font-normal py-1 pr-2 w-14">Data</th>
+                      <th className="text-left font-normal py-1 pr-2">Descrizione</th>
+                      <th className="text-left font-normal py-1 pr-2 hidden sm:table-cell w-32">Categoria</th>
+                      <th className="text-left font-normal py-1 pr-2 hidden sm:table-cell w-20">Tipo</th>
+                      <th className="text-right font-normal py-1 w-24">Importo</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {rows.map((s) => {
+                      const cat = cats.get(s.categoria_id);
+                      return (
+                        <tr key={s.id} className="border-t border-white/5">
+                          <td className="py-1.5 pr-2 tabular text-muted-foreground">
+                            {formatItDate(s.data)}
+                          </td>
+                          <td className="py-1.5 pr-2">
+                            <div className="truncate max-w-[140px] sm:max-w-none">
+                              {s.descrizione || cat?.nome || "—"}
+                            </div>
+                          </td>
+                          <td className="py-1.5 pr-2 hidden sm:table-cell">
+                            <div className="flex items-center gap-1.5">
+                              <span
+                                className="w-2 h-2 rounded-full flex-shrink-0"
+                                style={{ background: cat?.colore_hex ?? "#999" }}
+                              />
+                              <span className="truncate">{cat?.nome ?? "—"}</span>
+                            </div>
+                          </td>
+                          <td className="py-1.5 pr-2 hidden sm:table-cell">
+                            <span
+                              className={`text-[9px] uppercase tracking-wide ${
+                                s.tipo === "EFFETTIVA"
+                                  ? "text-muted-foreground"
+                                  : "text-[hsl(var(--warning))]"
+                              }`}
+                            >
+                              {s.tipo === "EFFETTIVA" ? "effettiva" : "programmata"}
+                            </span>
+                          </td>
+                          <td className="py-1.5 text-right font-semibold tabular text-destructive">
+                            {eur(Number(s.importo))}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }
