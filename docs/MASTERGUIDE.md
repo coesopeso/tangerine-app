@@ -56,8 +56,13 @@ Tangerine è lo strumento personale che permette a un freelance forfettario ital
 
 ### Fiscali
 - **Principio di Cassa**: tasse e INPS variabile solo su `stato = INCASSATO`.
-- **Eccezione INPS Fisso (Commerciante)**: matura sempre, anche con zero incassi.
+- **Eccezione INPS Fisso (Artigiani / Commercianti)**: matura sempre, anche con zero incassi.
+- **Tasse e quota socio solo su `tipo=FATTURA_PIVA`**. Mai su `ENTRATA_PRIVATA`.
+- **Quota socio in secchiello dedicato**, mai dentro la zavorra fiscale. Conguaglio annuale.
 - **Single Source of Truth**: questo set di documenti. Codice/foglio difformi vanno corretti.
+
+### Profile di riferimento "Mauri" (default app)
+ARTIGIANI · coeff 0.78 · imposta 5% · INPS fisso 384,31 €/mese (€4.612/anno) · soglia imponibile 18.415 € (≈ 23.608 € lordo) · aliquota eccedenza 24% · aliquota socio simulata 26,07%.
 
 ---
 

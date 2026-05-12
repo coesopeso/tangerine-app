@@ -34,6 +34,39 @@
 
 ## 📅 ENTRIES
 
+## 2026-05-12 — v5.1.1 patch fiscale (allineamento Excel)
+
+**Tipo**: SCHEMA / BUG / DOCS
+**Cosa**: Allineata la contabilità fiscale dei docs al foglio Excel `new_personal_finance_26.xlsx` (fonte di verità). Correzioni:
+
+1. **Regime INPS**: aggiunto `ARTIGIANI` (default Mauri) accanto a `COMMERCIANTI` e `GESTIONE_SEPARATA`. Stessa formula tra Artig./Comm., default diversi (Artigiani 2026: fisso €384,31/mese, soglia imponibile €18.415).
+2. **Logica socio** finalmente codificata correttamente:
+   - Flag `con_socio` per fattura (rinominato da `has_partner`)
+   - Quota socio simulata = `lordo × coeff × 0.2607`
+   - **Si applica SOLO a `tipo=FATTURA_PIVA`**. Mai su `ENTRATA_PRIVATA` anche se flaggata.
+   - **Va in secchiello dedicato `QUOTA_SOCIO`**, NON nella zavorra "Da Accantonare"
+   - Conguaglio annuale: trattenuto vs tasse reali socio → bonifico differenza
+3. **Tabella `entrata_netta` deprecata**: unificata in `fattura.tipo` (`FATTURA_PIVA` | `ENTRATA_PRIVATA`), coerente col foglio (una sola lista entrate con colonna TIPO).
+4. **Formula tasse esplicitata**: `lordo × coefficiente × aliquota` (non solo `imponibile × aliquota`).
+5. **Scenari test** A-J riallineati ai numeri reali Excel (es. Marzo Mauri: zavorra 435,01 €, quota socio 264,35 € — match esatto).
+6. **Seed dati** aggiornato in `MIGRATION.md`: 10 categorie con budget mensile dal foglio SETUP, 6 secchielli user + 2 di sistema (`QUOTA_SOCIO` obbligatorio, `FONDO_TASSE` opzionale).
+
+**File coinvolti**:
+- `docs/FISCAL_ENGINE.md` (glossario, bug storici, algoritmo, scenari A-J, regole)
+- `docs/DATA_MODEL.md` (profile, fattura, deprecazione entrata_netta, enum, secchielli sistema)
+- `docs/MASTERGUIDE.md` (regole fiscali, profile Mauri)
+- `docs/MIGRATION.md` (step 1 INPS, categorie, secchielli, CSV fatture)
+- `docs/CHANGELOG.md` (questo entry)
+
+**Breaking changes** vs v5.1:
+- enum `tipo_inps`: `COMMERCIANTE` → split in `ARTIGIANI` / `COMMERCIANTI`
+- `fattura.has_partner` → `fattura.con_socio`
+- `fattura.partner_aliquota` → rimosso (ora `profile.inps_aliquota_socio_simulata`)
+- nuovo `fattura.tipo` enum (default `FATTURA_PIVA`)
+- `entrata_netta` deprecata (migrare righe in `fattura` con `tipo=ENTRATA_PRIVATA`)
+
+---
+
 ## 2026-05-12 — TASK-000
 
 **Tipo**: DOCS / ARCH
@@ -152,5 +185,5 @@
 ## VERSION
 
 ```
-v5.1 — Modular docs, app standalone
+v5.1.1 — Allineamento Excel: Artigiani, logica socio, fattura.tipo
 ```

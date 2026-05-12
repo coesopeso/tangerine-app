@@ -26,9 +26,9 @@ NEXT:  MVP SPRINT 1 — Setup progetto + schema DB
 
 ### Sprint 2 — Motore fiscale e CRUD core (1-2 settimane)
 
-- [ ] Algoritmo `calcolaRiepilogoAnno` con scenari A-I tutti verdi (vedi `FISCAL_ENGINE.md`)
-- [ ] CRUD `fattura` con stati e calcolo on-the-fly
-- [ ] CRUD `entrata_netta`
+- [ ] Algoritmo `calcolaRiepilogoAnno` con scenari A-J tutti verdi (vedi `FISCAL_ENGINE.md`)
+- [ ] CRUD `fattura` con stati, `tipo` (FATTURA_PIVA|ENTRATA_PRIVATA), `con_socio` e calcolo on-the-fly
+- [ ] Secchiello sistema `QUOTA_SOCIO` + conguaglio annuale
 - [ ] CRUD `spesa` + `categoria` + `sottocategoria`
 - [ ] CRUD `cliente` con vista stats
 

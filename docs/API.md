@@ -39,13 +39,8 @@ DELETE /api/fatture/:id
 PATCH  /api/fatture/:id/stato        # body: {nuovo_stato, data_incasso?}
 ```
 
-### Entrate nette
-```
-GET    /api/entrate-nette?anno=&mese=
-POST   /api/entrate-nette
-PUT    /api/entrate-nette/:id
-DELETE /api/entrate-nette/:id
-```
+### Entrate private (DEPRECATO endpoint dedicato in v5.1.1)
+> Le entrate private (ex `entrata_netta`) ora sono righe `fattura` con `tipo='ENTRATA_PRIVATA'`. Usa gli endpoint `/api/fatture` con filtro `?tipo=ENTRATA_PRIVATA`. Nessun endpoint dedicato.
 
 ### Spese
 ```
@@ -132,14 +127,15 @@ POST   /api/export/google-sheets     # post-MVP
 {
   mese: number,
   anno: number,
-  incassato: number,
+  incassato_piva: number,         // solo FATTURA_PIVA INCASSATO
+  incassato_privato: number,      // ENTRATA_PRIVATA INCASSATO
   imponibile_mese: number,
   imponibile_ytd: number,
   tasse_mese: number,
   inps_fisso_mese: number,
   inps_eccedenza_mese: number,
-  zavorra_fiscale_mese: number,
-  entrate_nette_mese: number,
+  zavorra_fiscale_mese: number,   // tasse + inps_fisso + inps_eccedenza (NO socio)
+  quota_socio_mese: number,       // simulata, va in secchiello QUOTA_SOCIO
   spese_effettive_mese: number,
   allocazioni_secchielli_mese: number,
   tax_safe_mese: number,

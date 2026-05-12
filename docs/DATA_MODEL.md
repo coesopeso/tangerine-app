@@ -13,16 +13,16 @@
 | `anno_fiscale` | int | 2026 | Anno corrente. Cambia → tutto il sistema riparte. |
 | `coefficiente_redditivita` | numeric | 0.78 | ATECO: 0.40 / 0.54 / 0.62 / 0.67 / 0.73 / 0.78 / 0.86 |
 | `aliquota_imposta` | numeric | 0.05 | 0.05 (5% startup) o 0.15 (15% standard) |
-| `tipo_inps` | enum | `COMMERCIANTE` | `COMMERCIANTE` o `GESTIONE_SEPARATA` |
-| `inps_minimale_annuo` | numeric | 18808.00 | Soglia INPS Commercianti. Aggiornare ogni anno. |
-| `inps_fisso_mensile` | numeric | 376.78 | Quota fissa mensile Commercianti. |
-| `inps_aliquota_eccedenza` | numeric | 0.24 | Aliquota su eccedenza Commercianti. |
+| `tipo_inps` | enum | `ARTIGIANI` | `ARTIGIANI` / `COMMERCIANTI` / `GESTIONE_SEPARATA`. Artigiani e Commercianti condividono la formula (fisso + eccedenza differenziale), cambiano i default. |
+| `inps_minimale_annuo` | numeric | 18415.00 | Soglia INPS imponibile. Artigiani 2026 = 18415 (≈ 23608 lordo a coeff 0.78). Commercianti 2026 ≈ 18555. Aggiornare ogni anno. |
+| `inps_fisso_mensile` | numeric | 384.31 | Quota fissa mensile. Artigiani 2026 = 384.31 (€4612/anno). Commercianti 2026 = 376.78. |
+| `inps_aliquota_eccedenza` | numeric | 0.24 | Aliquota su eccedenza Artig./Comm. |
 | `inps_aliquota_gs` | numeric | 0.2607 | Aliquota Gestione Separata (0.2607 con altra copertura, 0.24 sola GS). |
+| `inps_aliquota_socio_simulata` | numeric | 0.2607 | Aliquota usata per simulare la quota socio (default = GS). Override per fattura non previsto in v5.1. |
 | `liquidita_iniziale` | numeric | 0 | Punto Zero anno fiscale. |
 | `investimenti_iniziali` | numeric | 0 | Punto Zero investimenti. |
 | `pac_mensile_automatico` | numeric | 0 | Quota PAC automatica. |
 | `cuscinetto_mensile_automatico` | numeric | 0 | Quota fondo emergenza automatica. |
-| `partner_aliquota_default` | numeric | 0.26 | Forfait socio (override per fattura). |
 | `tema` | enum | `AUTO` | `LIGHT` / `DARK` / `AUTO` |
 | `created_at` | timestamp | now() | |
 | `updated_at` | timestamp | now() | |
@@ -59,9 +59,9 @@
 | `data_incasso` | date? | NULL se non ancora pagato |
 | `descrizione` | text | |
 | `lordo` | numeric | |
+| `tipo` | enum | `FATTURA_PIVA` (genera tasse + INPS) / `ENTRATA_PRIVATA` (no tasse, no INPS variabile, no socio). Default `FATTURA_PIVA`. |
 | `stato` | enum | `PROGRAMMATO` / `EMESSO_DA_INCASSARE` / `INCASSATO` |
-| `has_partner` | boolean | TRUE se da smezzare con socio |
-| `partner_aliquota` | numeric | Override aliquota socio |
+| `con_socio` | boolean | TRUE se da smezzare con socio. Genera quota socio simulata SOLO se `tipo=FATTURA_PIVA` E `stato=INCASSATO`. Su `ENTRATA_PRIVATA` resta solo etichetta visiva. |
 | `note` | text | |
 | `created_at` | timestamp | |
 
@@ -75,19 +75,15 @@
 
 ---
 
-### `entrata_netta` — Entrate esentasse
+### ~~`entrata_netta`~~ — DEPRECATA in v5.1.1
 
-Vendite usato, regali, rimborsi, refund. **Non generano accantonamento tasse né INPS variabile**. INPS fisso (Commerciante) resta dovuto.
+> Le entrate esentasse (vendite usato, regali, rimborsi, refund) sono ora unificate nella tabella `fattura` con `tipo='ENTRATA_PRIVATA'`. Una sola tabella, due tipi, fiscalità divergente derivata dal campo `tipo`. Coerente col foglio Excel (una sola lista "Entrate" con colonna TIPO). Vedi `MIGRATION.md` per la migrazione.
 
-| Campo | Tipo | Descrizione |
-|---|---|---|
-| `id` | uuid | PK |
-| `data` | date | |
-| `voce` | text | |
-| `importo_netto` | numeric | |
-| `categoria` | text | `VENDITA_USATO` / `REGALO` / `RIMBORSO` / `REFUND` / `ALTRO` |
-| `note` | text | |
-| `created_at` | timestamp | |
+Per le `ENTRATA_PRIVATA` valgono questi vincoli:
+- `cliente_id` opzionale (es. "FRUTTETO", "REGALI" possono essere stringhe libere in `descrizione`)
+- `numero_fattura`, `data_emissione`, `data_scadenza_pagamento` sempre NULL
+- `con_socio` ammesso ma puramente etichetta visiva (nessun effetto fiscale)
+- INPS fisso (Artig./Comm.) resta dovuto indipendentemente
 
 ---
 
@@ -232,16 +228,23 @@ Vedi `CALENDAR.md` per dettaglio scadenze pre-popolate.
 ## 🔠 ENUM
 
 ```typescript
+tipo_fattura:     FATTURA_PIVA | ENTRATA_PRIVATA
 stato_fattura:    PROGRAMMATO | EMESSO_DA_INCASSARE | INCASSATO
 tipo_spesa:       EFFETTIVA | PROGRAMMATA
-tipo_inps:        COMMERCIANTE | GESTIONE_SEPARATA
+tipo_inps:        ARTIGIANI | COMMERCIANTI | GESTIONE_SEPARATA
 tipo_investimento: ETF | CRYPTO | AZIONE | OBBLIGAZIONE | ALTRO
 tipo_scadenza:    SALDO_IRPEF | ACCONTO_IRPEF_1 | ACCONTO_IRPEF_2 |
                   INPS_TRIM | INPS_ECCEDENZA | IVA | CCIAA | ALTRO
 tipo_quote_pac:   ACCUMULAZIONE | DISTRIBUZIONE
 tema:             LIGHT | DARK | AUTO
-categoria_entrata_netta: VENDITA_USATO | REGALO | RIMBORSO | REFUND | ALTRO
 ```
+
+### Secchielli "di sistema" (creati automaticamente, non eliminabili)
+
+| Slug | Nome UI | Target | Note |
+|---|---|---|---|
+| `QUOTA_SOCIO` | "Quota Socio — conguaglio" | nessun target | Auto-popolato da `quota_socio_mese` di ogni fattura `con_socio=true`. Azzerato a fine anno dopo conguaglio. |
+| `FONDO_TASSE` | "Tasse & INPS" | nessun target | Opzionale. Auto-popolato da `zavorra_fiscale_mese` se l'utente attiva `accantonamento_automatico` in profile. |
 
 ---
 
