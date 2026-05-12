@@ -71,6 +71,10 @@ export const listSecchielli = (): Secchiello[] => state.secchielli;
 export const listFatture = (): Fattura[] => state.fatture;
 export const listSpese = (): Spesa[] => state.spese;
 export const listAllocazioni = (): AllocazioneSecchiello[] => state.allocazioni;
+/** Set di id dei secchielli con tipo='TAX'. Da passare al motore fiscale
+ *  per il calcolo corretto di Netto Lordo / Tax-safe. Vedi types.ts. */
+export const getTaxBucketIds = (): ReadonlySet<string> =>
+  new Set(state.secchielli.filter((s) => s.tipo === "TAX").map((s) => s.id));
 export const isOnboarded = (): boolean => !!state.profile?.anno_fiscale && (state.profile as any).onboarded === true;
 
 // ─── Profile ────────────────────────────────────────────

@@ -2,6 +2,14 @@ export type TipoInps = "ARTIGIANI" | "COMMERCIANTI" | "GESTIONE_SEPARATA";
 export type TipoFattura = "FATTURA_PIVA" | "ENTRATA_PRIVATA";
 export type StatoFattura = "PROGRAMMATO" | "FATTURATO" | "INCASSATO";
 export type TipoSpesa = "EFFETTIVA" | "PROGRAMMATA";
+/**
+ * Distinzione fondante per il motore fiscale (vedi 0002_secchiello_tipo.sql):
+ * - TAX: accantonamenti per obblighi fiscali (FONDO_TASSE, QUOTA_SOCIO).
+ *         NON sono "soldi che escono" perché parte della zavorra fiscale.
+ * - DISCRETIONARY: scelta di risparmio dell'utente (Vacanze, Pensione, …).
+ *         Sì sottratti dal Netto Lordo per ottenere il Tax-safe.
+ */
+export type TipoSecchiello = "TAX" | "DISCRETIONARY";
 
 export interface Profile {
   anno_fiscale: number;
@@ -71,6 +79,7 @@ export interface Secchiello {
   target_data: string | null;
   sistema: boolean;
   archiviato: boolean;
+  tipo: TipoSecchiello;
   created_at?: string;
 }
 
@@ -97,7 +106,18 @@ export interface RiepilogoMese {
   zavorra_fiscale_mese: number;
   quota_socio_mese: number;
   spese_effettive_mese: number;
+  /** Tutte le allocazioni del mese (TAX + DISCRETIONARY). Retro-compat. */
   allocazioni_secchielli_mese: number;
+  /** Solo allocazioni in secchielli TAX (FONDO_TASSE, QUOTA_SOCIO, …). */
+  allocazioni_tax_mese: number;
+  /** Solo allocazioni in secchielli DISCRETIONARY (Vacanze, Pensione, …). */
+  allocazioni_discrezionali_mese: number;
+  /** Netto Lordo = incassato_piva + incassato_privato − zavorra_fiscale_mese.
+   *  È lo "stipendio" del periodo, prima di spese e accantonamenti. */
+  netto_lordo_mese: number;
+  /** Tax-safe = Netto Lordo − spese effettive − allocazioni_discrezionali.
+   *  È quello che resta davvero dopo aver vissuto e accantonato. */
   tax_safe_mese: number;
+  /** % accantonato (TAX + DISCRETIONARY) sulle entrate totali. */
   saving_rate: number;
 }

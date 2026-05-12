@@ -37,6 +37,7 @@ export const SECCHIELLI_SEED: Omit<Secchiello, "id" | "created_at">[] = [
     target_data: null,
     sistema: true,
     archiviato: false,
+    tipo: "TAX",
   },
   {
     slug: "FONDO_TASSE",
@@ -47,6 +48,7 @@ export const SECCHIELLI_SEED: Omit<Secchiello, "id" | "created_at">[] = [
     target_data: null,
     sistema: true,
     archiviato: false,
+    tipo: "TAX",
   },
   {
     nome: "Fondo Emergenza",
@@ -56,6 +58,7 @@ export const SECCHIELLI_SEED: Omit<Secchiello, "id" | "created_at">[] = [
     target_data: null,
     sistema: false,
     archiviato: false,
+    tipo: "DISCRETIONARY",
   },
   {
     nome: "Vacanze",
@@ -65,6 +68,7 @@ export const SECCHIELLI_SEED: Omit<Secchiello, "id" | "created_at">[] = [
     target_data: null,
     sistema: false,
     archiviato: false,
+    tipo: "DISCRETIONARY",
   },
   {
     nome: "Pensione",
@@ -74,6 +78,7 @@ export const SECCHIELLI_SEED: Omit<Secchiello, "id" | "created_at">[] = [
     target_data: null,
     sistema: false,
     archiviato: false,
+    tipo: "DISCRETIONARY",
   },
 ];
 

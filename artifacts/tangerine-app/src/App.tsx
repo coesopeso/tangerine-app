@@ -4,7 +4,7 @@ import { hydrate, isOnboarded, subscribe } from "@/lib/storage";
 import { isSupabaseConfigured } from "@/lib/supabase";
 import { PinScreen } from "@/pages/PinScreen";
 import { OnboardingWizard } from "@/pages/OnboardingWizard";
-import { DashboardCasa } from "@/pages/DashboardCasa";
+import { Dashboard } from "@/pages/Dashboard";
 import { MesiScreen } from "@/pages/MesiScreen";
 import { FiscoScreen } from "@/pages/FiscoScreen";
 import { PatrimonioScreen } from "@/pages/PatrimonioScreen";
@@ -92,12 +92,7 @@ export default function App() {
       <main key={`${tab}-${tick}`}>
         {tab === "dashboard" && (
           <>
-            <div className="px-4 pt-3">
-              <div className="rounded-xl border border-dashed border-card-border bg-card/40 px-3 py-2 text-xs text-muted-foreground">
-                Dashboard annuale in arrivo. Per ora trovi qui i dati del mese e il fisco annuo.
-              </div>
-            </div>
-            <DashboardCasa anno={anno} mese={mese} refreshKey={tick} />
+            <Dashboard anno={anno} mese={mese} />
             <FiscoScreen anno={anno} refreshKey={tick} />
           </>
         )}

@@ -10,6 +10,7 @@ import { CalendarDays, TrendingUp, Wallet, Receipt, PiggyBank } from "lucide-rea
 import { KpiCard } from "@/components/KpiCard";
 import {
   getProfile,
+  getTaxBucketIds,
   listAllocazioni,
   listFatture,
   listSpese,
@@ -49,6 +50,7 @@ export function MesiScreen({ anno, mese }: Props) {
     listAllocazioni(),
     profileScoped,
     mese,
+    getTaxBucketIds(),
   );
 
   const incassato_totale = r.incassato_piva + r.incassato_privato;

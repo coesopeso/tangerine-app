@@ -21,6 +21,12 @@ export function calcolaRiepilogoAnno(
   spese: Spesa[],
   allocazioni: AllocazioneSecchiello[],
   profile: Profile,
+  /**
+   * Set di id dei secchielli con tipo='TAX'. Le allocazioni verso questi
+   * secchielli NON vengono sottratte dal Netto Lordo nel calcolo Tax-safe
+   * (sono già parte della zavorra fiscale). Vedi types.ts → TipoSecchiello.
+   */
+  taxBucketIds: ReadonlySet<string> = new Set(),
 ): RiepilogoMese[] {
   const out: RiepilogoMese[] = [];
   let imp_ytd_prev = 0;
@@ -65,16 +71,24 @@ export function calcolaRiepilogoAnno(
       .filter((s) => s.tipo === "EFFETTIVA" && inMese(s.data, profile.anno_fiscale, m))
       .reduce((s, x) => s + x.importo, 0);
 
-    const allocazioni_secchielli_mese = allocazioni
-      .filter((a) => inMese(a.mese, profile.anno_fiscale, m))
+    const allocMese = allocazioni.filter((a) =>
+      inMese(a.mese, profile.anno_fiscale, m),
+    );
+    const allocazioni_secchielli_mese = allocMese.reduce((s, a) => s + a.importo, 0);
+    const allocazioni_tax_mese = allocMese
+      .filter((a) => taxBucketIds.has(a.secchiello_id))
       .reduce((s, a) => s + a.importo, 0);
+    const allocazioni_discrezionali_mese =
+      allocazioni_secchielli_mese - allocazioni_tax_mese;
 
+    // Netto Lordo = "stipendio" del periodo, dopo solo gli obblighi fiscali.
+    const netto_lordo_mese =
+      incassato_piva + incassato_privato - zavorra_fiscale_mese;
+
+    // Tax-safe = quello che resta davvero, dopo spese e accantonamenti
+    // discrezionali (NON i secchielli TAX, già contati nella zavorra).
     const tax_safe_mese =
-      incassato_piva +
-      incassato_privato -
-      zavorra_fiscale_mese -
-      spese_effettive_mese -
-      allocazioni_secchielli_mese;
+      netto_lordo_mese - spese_effettive_mese - allocazioni_discrezionali_mese;
 
     const saving_rate =
       incassato_piva + incassato_privato > 0
@@ -94,6 +108,9 @@ export function calcolaRiepilogoAnno(
       quota_socio_mese,
       spese_effettive_mese,
       allocazioni_secchielli_mese,
+      allocazioni_tax_mese,
+      allocazioni_discrezionali_mese,
+      netto_lordo_mese,
       tax_safe_mese,
       saving_rate,
     });
@@ -110,8 +127,9 @@ export function calcolaMese(
   allocazioni: AllocazioneSecchiello[],
   profile: Profile,
   mese: number,
+  taxBucketIds: ReadonlySet<string> = new Set(),
 ): RiepilogoMese {
-  const anno = calcolaRiepilogoAnno(fatture, spese, allocazioni, profile);
+  const anno = calcolaRiepilogoAnno(fatture, spese, allocazioni, profile, taxBucketIds);
   return anno[mese - 1];
 }
 
