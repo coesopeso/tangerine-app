@@ -1,4 +1,4 @@
-# 🚨 ERROR_HANDBOOK — Tangerine PWA v5.1
+# 🚨 ERROR_HANDBOOK — Tangerine PWA v5.2
 
 > Bug noti e fix. **Controllare qui prima di indagare un bug nuovo.**
 
@@ -46,7 +46,7 @@
 | iOS PWA non riceve notifiche | iOS supporta notifiche PWA solo da 16.4+ e solo se installata da Home Screen | Documentare nel wizard onboarding |
 | Bottom sheet non si chiude su iOS | Manca handler swipe-down | Implementare gesture handler nativo |
 | Push notification non arriva | Browser non in foreground | Service worker deve gestire `push` event correttamente |
-| App lenta al primo accesso | Replit Autoscale freddo | Normale (~2s wake). Mostrare splash. |
+| App lenta al primo accesso | Vercel CDN cold start o Edge Function cold start (~300-800ms) | Normale. Mostrare splash. Pre-warm Edge Function su `auth-pin-verify`. |
 | Input numerico con virgola non parsato | Locale italiano vs JS | Usare parser custom: `parseFloat(input.replace(',', '.'))` |
 
 ---
@@ -66,9 +66,12 @@
 
 | Sintomo | Causa | Fix |
 |---|---|---|
-| Replit app va in sleep | Piano gratuito | Usare Replit Autoscale (~15-30 €/anno) |
-| Postgres connection drop | Idle timeout | Connection pool con ping ogni 5min |
-| CORS error in dev | Frontend e backend su porte diverse | Configurare proxy Vite o Hono CORS middleware |
+| Supabase free DB in pausa dopo 7gg inattività | Free tier policy | Cron settimanale (GitHub Actions o pg_cron) che fa `SELECT 1` per tenerlo sveglio |
+| RLS blocca query legittima → 0 rows | Policy mancante o sbagliata su `user_id = auth.uid()` | Verificare policy nella dashboard Supabase, rieseguire migrazione |
+| 401 da Edge Function | JWT non passato o scaduto | Usare `supabase.functions.invoke` (passa JWT in automatico). Se chiami via fetch: header `Authorization: Bearer <jwt>` |
+| Vercel build fallisce per env var mancante | `VITE_SUPABASE_URL` / `VITE_SUPABASE_ANON_KEY` non configurate in Project Settings | Aggiungere in Vercel → Settings → Environment Variables, redeploy |
+| CORS error chiamando Edge Function | Origin non in allowlist | Edge Function: rispondere con header `Access-Control-Allow-Origin` corretto, gestire preflight `OPTIONS` |
+| TypeScript error "TS ~6.0.2" | Typo in package.json (TS max 5.x) | Correggere a `^5.x` |
 
 ---
 
@@ -92,5 +95,5 @@
 ## VERSION
 
 ```
-v5.1 — Catalogo bug fiscali + UX + iOS + infra
+v5.2 — Catalogo bug fiscali + UX + iOS + infra Supabase/Vercel
 ```

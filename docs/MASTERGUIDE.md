@@ -1,4 +1,4 @@
-# 🧭 MASTERGUIDE — Tangerine PWA v5.1
+# 🧭 MASTERGUIDE — Tangerine PWA v5.2
 
 > **Caricare per primo in ogni sessione LLM.** Questo file contiene missione, obiettivi, regole globali. Tutto il resto deriva da qui.
 
@@ -61,8 +61,11 @@ Tangerine è lo strumento personale che permette a un freelance forfettario ital
 - **Quota socio in secchiello dedicato**, mai dentro la zavorra fiscale. Conguaglio annuale.
 - **Single Source of Truth**: questo set di documenti. Codice/foglio difformi vanno corretti.
 
-### Profile di riferimento "Mauri" (default app)
+### Profile di riferimento "Augusto" (default app)
 ARTIGIANI · coeff 0.78 · imposta 5% · INPS fisso 384,31 €/mese (€4.612/anno) · soglia imponibile 18.415 € (≈ 23.608 € lordo) · aliquota eccedenza 24% · aliquota socio simulata 26,07%.
+
+### Stack di riferimento (as-built)
+React 19 + Vite + Tailwind 4 · Supabase (Postgres + Auth + Edge Functions Deno) · Vercel · Lucide. Repo: `github.com/coesopeso/tangerine-app`. Costo: 0 €/anno.
 
 ---
 
@@ -97,5 +100,5 @@ ARTIGIANI · coeff 0.78 · imposta 5% · INPS fisso 384,31 €/mese (€4.612/an
 ## VERSION
 
 ```
-v5.1 — Master Architecture, app standalone
+v5.2 — Augusto, stack as-built (Supabase + Vercel + Edge Functions)
 ```

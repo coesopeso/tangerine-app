@@ -1,4 +1,4 @@
-# 🤖 LLM_RULES — Tangerine PWA v5.1
+# 🤖 LLM_RULES — Tangerine PWA v5.2
 
 > Regole operative per qualsiasi LLM (Claude, GPT, Gemini, ecc.) che lavora su Tangerine. Caricare insieme a `MASTERGUIDE.md` all'inizio di ogni sessione.
 
@@ -8,8 +8,9 @@
 
 ```
 Ruolo: Senior Financial Modeler + Full-stack Engineer specializzato in:
-- React + TypeScript + PostgreSQL per PWA personali
-- Hono backend, Drizzle ORM, Zod validation
+- React 19 + TypeScript + Tailwind 4 per PWA personali
+- Supabase (Postgres + Auth + Edge Functions Deno) + Vercel
+- Zod validation condivisa client/edge
 - Diritto tributario italiano per Partite IVA forfettarie
 - UX mobile-first stile Revolut migliorato
 
@@ -33,7 +34,7 @@ Per qualsiasi task:
 2. `LLM_RULES.md` — questo file
 3. File specifici del task (vedi `INDEX.md` mappa task → file)
 4. `ERROR_HANDBOOK.md` — controlla se il bug è già noto
-5. Per modifiche fiscali: `FISCAL_ENGINE.md` + scenari test A-I
+5. Per modifiche fiscali: `FISCAL_ENGINE.md` + scenari test A-J
 
 ---
 
@@ -47,7 +48,7 @@ Per qualsiasi task:
 | Hardcoded `0.05`, `0.78`, `376.78`, `0.24`, `18808` | Tutto referenzia `profile` |
 | Inventare soglie/aliquote non in profile | Chiedere all'utente |
 | `1/x` non protetto (DIV/0) | IFERROR / try-catch sempre |
-| tRPC, Wouter, react-hook-form, Manus OAuth, Supabase, Clerk | Stack v5.1 li esclude esplicitamente |
+| Hono, Drizzle, Replit Postgres, tRPC, Wouter, react-hook-form, Manus OAuth, Clerk, Auth0, Firebase Auth | Stack v5.2 li esclude esplicitamente. L'auth è Supabase Auth + PIN. La logica fiscale è in Edge Functions Deno. |
 | Suggerire App Store / nativo iOS | PWA è la scelta |
 | Font diversi da Inter | Inter è standard del progetto |
 | Numeri senza `tabular-nums` | Allineamento si rompe |
@@ -65,8 +66,9 @@ Per qualsiasi task:
 ### Per modifiche al codice
 - Path file completo
 - Diff puntuale, NON file intero (a meno che richiesto)
-- Specifica se serve update Drizzle schema (e includi migration)
-- Specifica se serve update Zod schema condiviso
+- Specifica se serve nuova migrazione SQL Supabase (`supabase/migrations/NNNN_*.sql`)
+- Specifica se serve update Zod schema condiviso (client + Edge Function)
+- Specifica se serve redeploy Edge Function (`supabase functions deploy <nome>`)
 
 ### Per nuove feature
 1. Verifica che esista nelle sezioni dei documenti
@@ -92,7 +94,7 @@ Per qualsiasi task:
 
 4. Implementa in piccoli step verificabili.
 
-5. Testa contro scenari A-I prima di considerare fatto.
+5. Testa contro scenari A-J prima di considerare fatto.
 
 6. Aggiorna CHANGELOG.md e TASKS.md.
 ```
@@ -123,5 +125,5 @@ Per minimizzare costi:
 ## VERSION
 
 ```
-v5.1 — LLM Rules, allineate a documentazione modulare
+v5.2 — Stack Supabase + Edge Functions, forbidden list aggiornata
 ```

@@ -1,4 +1,4 @@
-# 📈 INVESTMENTS — Tangerine PWA v5.1
+# 📈 INVESTMENTS — Tangerine PWA v5.2
 
 > PAC, secchielli, esempi concreti popolati. L'app deve essere brutalmente onesta sui costi.
 
@@ -197,5 +197,5 @@ Calcoli analoghi al PAC ma senza versamenti ricorrenti:
 ## VERSION
 
 ```
-v5.1 — Esempi Mediolanum Cina/India popolati, formule costi, badge incidenza
+v5.2 — Esempi Mediolanum Cina/India popolati, formule costi, badge incidenza (profilo Augusto)
 ```

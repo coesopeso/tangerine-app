@@ -1,4 +1,4 @@
-# 🧪 TESTING — Tangerine PWA v5.1
+# 🧪 TESTING — Tangerine PWA v5.2
 
 > Protocolli di validazione. Zero tolleranza bug nei calcoli fiscali.
 
@@ -15,11 +15,12 @@ Ogni test valida:
 ### 2. Ordine di validazione rigido
 Non procedere se il precedente fallisce. Ordine:
 1. Validazione Zod input
-2. Funzioni motore fiscale (scenari A-I)
-3. Endpoint REST (happy path + error cases)
-4. UI integration test (componenti critici)
-5. E2E flows (wizard onboarding, quick add, dashboard)
-6. Stress test (edge cases)
+2. Funzioni motore fiscale (scenari A-J) — testabili in puro TypeScript senza DB
+3. Edge Functions (`compute-mese`, `compute-anno`, `conguaglio-socio`) — happy path + error cases
+4. RLS Supabase: utente A non vede dati utente B
+5. UI integration test (componenti critici)
+6. E2E flows (wizard onboarding, quick add, dashboard, multi-device login)
+7. Stress test (edge cases)
 
 ### 3. Zero tolleranza
 Il sistema NON è validato finché ci sono:
@@ -33,7 +34,7 @@ Il sistema NON è validato finché ci sono:
 
 ## 🧮 FASE 1 — MOTORE FISCALE (priorità assoluta)
 
-Tutti gli scenari A-I in `FISCAL_ENGINE.md` devono passare.
+Tutti gli scenari A-J in `FISCAL_ENGINE.md` devono passare.
 
 ### Suite test consigliata
 
@@ -42,50 +43,58 @@ Tutti gli scenari A-I in `FISCAL_ENGINE.md` devono passare.
 import { describe, it, expect } from 'vitest';
 import { calcolaRiepilogoAnno } from '../calcolaRiepilogoAnno';
 
-describe('FISCAL ENGINE — Scenari A-I', () => {
-  it('Scenario A: Commerciante singola fattura sotto soglia', () => {
+describe('FISCAL ENGINE — Scenari A-J', () => {
+  it('Scenario A: Artigiani singola fattura P.IVA sotto soglia', () => {
     const profile = {
       anno_fiscale: 2026,
       coefficiente_redditivita: 0.78,
       aliquota_imposta: 0.05,
-      tipo_inps: 'COMMERCIANTE' as const,
-      inps_minimale_annuo: 18808,
-      inps_fisso_mensile: 376.78,
+      tipo_inps: 'ARTIGIANI' as const,
+      inps_minimale_annuo: 18415,
+      inps_fisso_mensile: 384.31,
       inps_aliquota_eccedenza: 0.24,
       inps_aliquota_gs: 0.2607,
+      inps_aliquota_socio_simulata: 0.2607,
     };
     const fatture = [{
       data_incasso: new Date('2026-01-15'),
       lordo: 5000,
       stato: 'INCASSATO' as const,
+      tipo: 'FATTURA_PIVA' as const,
+      con_socio: false,
     }];
 
     const r = calcolaRiepilogoAnno(fatture, profile);
     expect(r[0].imponibile_mese).toBe(3900);
     expect(r[0].tasse_mese).toBe(195);
-    expect(r[0].inps_fisso_mese).toBe(376.78);
+    expect(r[0].inps_fisso_mese).toBe(384.31);
     expect(r[0].inps_eccedenza_mese).toBe(0);
-    expect(r[0].zavorra_fiscale_mese).toBeCloseTo(571.78, 2);
+    expect(r[0].zavorra_fiscale_mese).toBeCloseTo(579.31, 2);
+    expect(r[0].quota_socio_mese).toBe(0);
   });
 
-  // Scenari B-I analoghi, vedi FISCAL_ENGINE.md
+  // Scenari B-J analoghi, vedi FISCAL_ENGINE.md
+  // Scenario I (Marzo Augusto) è il regression test principale: zavorra=435.01, quota_socio=264.35
 });
 ```
 
 ---
 
-## 🌐 FASE 2 — ENDPOINT REST
+## 🌐 FASE 2 — EDGE FUNCTIONS + RLS
 
-### Per ogni endpoint
+### Per ogni Edge Function (`compute-mese`, `compute-anno`, `conguaglio-socio`, `auth-pin-*`)
 - [ ] Happy path con payload valido
 - [ ] Validation Zod fallisce su payload sbagliato → 400
-- [ ] Auth: 401 senza session
-- [ ] FK invalida → 404
+- [ ] Auth: 401 senza JWT, 403 se RLS blocca
+- [ ] Numeri identici al test unitario di `calcolaRiepilogoAnno` (no drift client/edge)
+
+### Per RLS
+- [ ] Utente A non vede `fattura` / `spesa` / `secchiello` di utente B
+- [ ] INSERT con `user_id` falsificato → 403
 - [ ] Soft delete: cliente con fatture → `attivo=false`, fatture preservate
-- [ ] Query params filtrano correttamente
 
 ### Tool consigliato
-- Vitest + supertest, oppure Hono testing helpers built-in
+- Vitest + `@supabase/supabase-js` su istanza locale (`supabase start`) o branch DB di test
 
 ---
 
@@ -116,7 +125,8 @@ describe('FISCAL ENGINE — Scenari A-I', () => {
 | Onboarding | Wizard 5 step → dashboard popolata |
 | Quick add spesa | Tap +, importo, categoria, salva, vedo in lista |
 | Quick add fattura INCASSATO | Stessa flow + stato → vedo accantonamento aggiornato |
-| Cambio stato fattura | EMESSO → INCASSATO → vedo tasse e INPS scattare |
+| Cambio stato fattura | FATTURATO → INCASSATO → vedo tasse e INPS scattare |
+| Login multi-device | Setup PIN su device 1 → email magic link su device 2 → stesso PIN sblocca → stessi dati |
 | Aggiungi PAC | Form, vedo card con badge |
 | Aggiorna prezzo PAC | Patch endpoint, vedo P/L cambiato |
 | Notifica scadenza | Mock data 7gg → vedo URGENTE |
@@ -147,8 +157,9 @@ describe('FISCAL ENGINE — Scenari A-I', () => {
 
 Prima di considerare l'MVP concluso:
 
-- [ ] Tutti gli scenari A-I in `FISCAL_ENGINE.md` passano
-- [ ] Tutti gli endpoint hanno test happy + error
+- [ ] Tutti gli scenari A-J in `FISCAL_ENGINE.md` passano
+- [ ] Tutte le Edge Functions hanno test happy + error
+- [ ] RLS testata: nessuna leak cross-utente
 - [ ] Zero TypeScript errors
 - [ ] Zero console errors in produzione
 - [ ] Wizard onboarding testato end-to-end
@@ -173,5 +184,5 @@ Prima di considerare l'MVP concluso:
 ## VERSION
 
 ```
-v5.1 — Test protocolli per app standalone
+v5.2 — Test fiscali + Edge Functions + RLS Supabase, scenari A-J
 ```

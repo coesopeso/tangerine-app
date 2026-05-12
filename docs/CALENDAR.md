@@ -1,4 +1,4 @@
-# 📅 CALENDAR — Tangerine PWA v5.1
+# 📅 CALENDAR — Tangerine PWA v5.2
 
 > Scadenze fiscali forfettario 2026. Calcolo importi automatici. Notifiche.
 
@@ -6,7 +6,7 @@
 
 ## 🗓 SCADENZE FISSE 2026
 
-### Commerciante (tipo_inps = COMMERCIANTE)
+### Commercianti (tipo_inps = COMMERCIANTI)
 
 | Tipo | Data | Cosa |
 |---|---|---|
@@ -77,8 +77,8 @@ L'app, al setup del profilo o al cambio anno fiscale:
 ## 🏗 IMPLEMENTAZIONE NOTIFICHE
 
 - **Service Worker** PWA gestisce push event
-- Backend cron job (Hono cron + node-cron) lancia check ogni mattina alle 08:00
-- Subscription push registrata al primo permission grant
+- Cron job lato Supabase (`pg_cron` + Edge Function `notify-scadenze`) ogni mattina alle 08:00 calcola le scadenze in finestra 30/15/7/1 gg e invia push
+- Subscription push registrata al primo permission grant e salvata in tabella `push_subscription`
 - Per iOS: documentare nel wizard che PWA va installata da Home Screen prima delle notifiche
 
 ---
@@ -94,5 +94,5 @@ L'app, al setup del profilo o al cambio anno fiscale:
 ## VERSION
 
 ```
-v5.1 — Pre-popolamento per tipo_inps, calcolo importi automatico
+v5.2 — Notifiche via pg_cron + Edge Function notify-scadenze
 ```

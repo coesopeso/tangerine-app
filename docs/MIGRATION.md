@@ -1,4 +1,4 @@
-# 🚚 MIGRATION — Tangerine PWA v5.1
+# 🚚 MIGRATION — Tangerine PWA v5.2
 
 > Onboarding utente che arriva da foglio Tangerine v4. Wizard 5 step + import CSV + export foglio.
 
@@ -11,7 +11,7 @@
 - Coefficiente ATECO (dropdown 7 valori: 0.40 / 0.54 / 0.62 / 0.67 / 0.73 / 0.78 / 0.86)
 - Aliquota imposta (5% / 15%)
 - **Tipo INPS** (Artigiani / Commercianti / Gestione Separata)
-  - Se Artigiani (default Mauri): minimale annuo (default 18415), fisso mensile (default 384.31 → €4612/anno), aliquota eccedenza (default 24%)
+  - Se Artigiani (default Augusto): minimale annuo (default 18415), fisso mensile (default 384.31 → €4612/anno), aliquota eccedenza (default 24%)
   - Se Commercianti: minimale ~18555, fisso ~376.78, aliquota eccedenza 24%
   - Se GS: aliquota GS (default 26.07% con altra copertura, 24% sola GS), niente fisso, niente soglia
 - **Aliquota socio simulata** (default 26.07% = GS). Usata per calcolare la quota da trattenere su fatture flaggate `con_socio`.
@@ -84,7 +84,7 @@ Dopo wizard → dashboard mese corrente popolata e funzionante.
 ```csv
 data_emissione,data_incasso,cliente_nome,descrizione,lordo,tipo,stato,con_socio
 2026-01-15,2026-02-10,Studio Rossi,Consulenza Gennaio,2500.00,FATTURA_PIVA,INCASSATO,false
-2026-02-01,,Tech Startup,Marketing Q1,1200.00,FATTURA_PIVA,EMESSO_DA_INCASSARE,false
+2026-02-01,,Tech Startup,Marketing Q1,1200.00,FATTURA_PIVA,FATTURATO,false
 2026-03-10,,Cliente Premium,Audit annuale,5000.00,FATTURA_PIVA,PROGRAMMATO,true
 ,2026-01-05,,FRUTTETO,500.00,ENTRATA_PRIVATA,INCASSATO,false
 ,2026-01-12,,REGALI,550.00,ENTRATA_PRIVATA,INCASSATO,false
@@ -143,7 +143,7 @@ API Google Sheets v4 + service account.
 
 ## 🔄 EXPORT CSV (MVP)
 
-Endpoint `POST /api/export/csv` produce un `tangerine-export-2026-05-12.zip` contenente:
+Edge Function `POST /functions/v1/export-csv` produce un `tangerine-export-2026-05-12.zip` contenente:
 
 ```
 fatture.csv
@@ -174,5 +174,5 @@ Tutti i file usano stesso formato dell'import (idempotente import-export-import)
 ## VERSION
 
 ```
-v5.1 — Wizard 5 step, CSV bidirezionali, foglio come export
+v5.2 — Wizard 5 step, CSV bidirezionali, profile Augusto, stati FATTURATO/INCASSATO/PROGRAMMATO
 ```

@@ -1,6 +1,6 @@
-# 🎨 UX_RULES — Tangerine PWA v5.1
+# 🎨 UX_RULES — Tangerine PWA v5.2
 
-> Stile funzionale Revolut migliorato. Densità Revolut, identità Tangerine (arancione, leggibilità maggiore, grafici chiari).
+> Stile funzionale Revolut migliorato. Densità Revolut, identità Tangerine (arancione + accent giallo Revolut, leggibilità maggiore, grafici chiari).
 
 ---
 
@@ -22,16 +22,22 @@ Toggle: `LIGHT` / `DARK` / `AUTO` (default AUTO, segue sistema).
 | Warning | `#F59E0B` |
 | Errore | `#EF4444` |
 
-### Palette DARK
+### Palette DARK — "Revolut as-built" (default app, conservata dal codice esistente)
 
-| Elemento | Colore |
-|---|---|
-| Background | `#0A0A0A` |
-| Surface | `#1A1A1C` |
-| Border | `#2D2D30` |
-| Testo primario | `#FAFAFA` |
-| Testo secondario | `#A1A1AA` |
-| Accento Tangerine | `#FB923C` (arancione più chiaro per contrasto) |
+| Elemento | Colore | Uso |
+|---|---|---|
+| Background | `#0E0E14` | Sfondo app |
+| Surface (card) | `#1A1A22` | Card, bottom sheet, modali |
+| Border / Divider | `#2A2A36` | Separatori, hover state |
+| Testo primario | `#FAFAFA` | Numeri grandi, titoli |
+| Testo secondario | `#8B8B9E` | Label, metadata, placeholder |
+| Accento principale | `#FFC048` (giallo Revolut) | Bottoni primari, tab attiva, KPI focus |
+| Successo | `#00D9A0` | Entrate, P/L positivo, conferme |
+| Info | `#4A9EFF` | Info, pending, link |
+| Warning / Attenzione | `#E84393` (magenta) | Soglie INPS, costi PAC alti |
+| Errore / Spese | `#FF4D6D` | Importi spesa, errori, scadute |
+
+> **Nota identità**: l'arancione Tangerine `#F97316` resta come accento alternativo per branding (logo, splash, marketing). Dentro l'app domina il **giallo Revolut `#FFC048`** per coerenza col design già in uso e approvato.
 
 ### Categorie spese (icone, non sfondi)
 
@@ -58,6 +64,25 @@ Toggle: `LIGHT` / `DARK` / `AUTO` (default AUTO, segue sistema).
 
 ---
 
+## 🗓 NAVIGATORE MESE (sticky header)
+
+Pattern obbligatorio in tutte le schermate dipendenti dal mese (Casa, Spese, Fisco):
+
+```
+┌──────────────────────────────────────────────────┐
+│  ◀     Marzo 2026     ▶                          │ ← sticky top, surface
+└──────────────────────────────────────────────────┘
+```
+
+- Posizione: `position: sticky; top: 0; z-index: 10` sopra il contenuto scrollabile
+- Sfondo: `surface` con leggero blur (`backdrop-filter: blur(8px)`) se sotto c'è contenuto
+- Frecce ◀ ▶: `48×48` tap target, accent giallo on press
+- Tap sul label "Marzo 2026" → bottom sheet con grid 12 mesi + selezione anno
+- Mese corrente: highlight giallo nel grid
+- Cambio mese: tutti i KPI/lista si ricalcolano (Edge Function `compute-mese`)
+
+---
+
 ## 📱 LAYOUT — TAB BAR (sempre visibile)
 
 ```
@@ -72,8 +97,8 @@ Toggle: `LIGHT` / `DARK` / `AUTO` (default AUTO, segue sistema).
 ```
 
 - **5 tab** con icone Lucide + label
-- Tab centrale (➕) **20% più grande**, sfondo arancione Tangerine, sempre evidente
-- Tab attiva: icona arancione + label arancione
+- Tab centrale (➕) **20% più grande**, sfondo accento principale (giallo Revolut `#FFC048` in DARK / arancione Tangerine `#F97316` in LIGHT), sempre evidente
+- Tab attiva: icona + label nello stesso accento principale del tema corrente
 - Altezza: 64px (88px con safe area iOS)
 
 ### Schermate principali
@@ -122,11 +147,11 @@ Toggle: `LIGHT` / `DARK` / `AUTO` (default AUTO, segue sistema).
 │  📅 Oggi (default, tap per cambiare)              │
 │  📝 Nota (opzionale)                              │
 │                                                   │
-│  [          SALVA          ]                      │ ← full-width arancione
+│  [          SALVA          ]                      │ ← full-width accento principale (giallo DARK / arancione LIGHT)
 └──────────────────────────────────────────────────┘
 ```
 
-- Toggle in alto: Spesa / Fattura / Entrata netta
+- Toggle in alto: Spesa / Fattura P.IVA / Entrata privata (`tipo=ENTRATA_PRIVATA`)
 - Salva → toast verde 2s, sheet si chiude
 
 ---
@@ -218,5 +243,5 @@ Libreria: **Recharts**.
 ## VERSION
 
 ```
-v5.1 — UX Revolut migliorato, palette Tangerine, grafici leggibili
+v5.2 — Palette Revolut as-built (#0E0E14/#1A1A22/#FFC048/...), navigatore mese sticky, identità conservata
 ```

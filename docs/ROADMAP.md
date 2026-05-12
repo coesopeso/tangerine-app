@@ -1,4 +1,4 @@
-# 🛣 ROADMAP — Tangerine PWA v5.1
+# 🛣 ROADMAP — Tangerine PWA v5.2
 
 > MVP necessario per "abbandonare Excel". Post-MVP per nice-to-have. Backlog per ipotesi future.
 
@@ -7,30 +7,35 @@
 ## 🚦 STATO ATTUALE
 
 ```
-PHASE: SPECIFICATION COMPLETE
-NEXT:  MVP SPRINT 1 — Setup progetto + schema DB
+PHASE: REALIGN CODE ↔ DOCS (TASK #1 in corso)
+DONE:  Bozza React 19 + Tailwind 4 + Supabase nel repo coesopeso/tangerine-app
+       (App.tsx monolitico, 4 tabelle test, design Revolut, no PIN, motore fiscale semplificato)
+NOW:   Allineamento docs v5.2 + migrazione schema completo + PIN auth
+       + refactor componenti + motore fiscale corretto + Edge Functions + deploy Vercel
 ```
 
 ---
 
 ## 🏗 MVP — Sprint plan
 
-### Sprint 1 — Fondamenta (1-2 settimane)
+### Sprint 1 — Allineamento codice ↔ docs v5.2 (TASK #1, in corso)
 
-- [ ] Setup progetto Replit: Hono + Drizzle + Postgres + React + Vite (artifact `tangerine-pwa`)
-- [ ] Schema DB completo (vedi `DATA_MODEL.md`)
-- [ ] Auth PIN locale 6 cifre + lockout
+- [x] Docs v5.2 allineate (questo step)
+- [ ] Migrazione SQL Supabase: drop 4 tabelle test, create ~12 tabelle target con RLS, seed Augusto
+- [ ] PIN auth 6 cifre sopra Supabase Auth + lockout
+- [ ] Refactor `App.tsx` monolitico in moduli (auth, onboarding, dashboard, entrate, uscite, secchielli, profile)
 - [ ] Wizard onboarding 5 step (vedi `MIGRATION.md`)
-- [ ] Endpoint `profile` GET/PUT
-- [ ] Layout shell con tab bar 5 voci
+- [ ] Edge Function `compute-mese` con scenari A-J tutti verdi
+- [ ] Verifica match esatto Marzo 2026 Augusto (incassato_piva 1300, tasse 50.70, quota_socio 264.35, INPS 384.31, zavorra 435.01)
+- [ ] Deploy Vercel + test multi-device
 
-### Sprint 2 — Motore fiscale e CRUD core (1-2 settimane)
+### Sprint 2 — Estensione CRUD core (post-realign)
 
-- [ ] Algoritmo `calcolaRiepilogoAnno` con scenari A-J tutti verdi (vedi `FISCAL_ENGINE.md`)
-- [ ] CRUD `fattura` con stati, `tipo` (FATTURA_PIVA|ENTRATA_PRIVATA), `con_socio` e calcolo on-the-fly
-- [ ] Secchiello sistema `QUOTA_SOCIO` + conguaglio annuale
-- [ ] CRUD `spesa` + `categoria` + `sottocategoria`
 - [ ] CRUD `cliente` con vista stats
+- [ ] CRUD `categoria` + `sottocategoria` con dropdown e seed
+- [ ] CRUD `secchiello` user (oltre a quelli di sistema) con target opzionale
+- [ ] Edge Function `conguaglio-socio`
+- [ ] Edge Function `compute-anno` con KPI annuali
 
 ### Sprint 3 — UI base (1-2 settimane)
 
@@ -54,7 +59,7 @@ NEXT:  MVP SPRINT 1 — Setup progetto + schema DB
 - [ ] Export CSV zippato
 - [ ] Accessibilità WCAG AA
 - [ ] PWA manifest + service worker + push notifications
-- [ ] Test fiscale completo contro scenari A-I
+- [ ] Test fiscale completo contro scenari A-J
 - [ ] Onboarding documentato + screenshots
 
 ### Definition of Done MVP
@@ -91,7 +96,7 @@ In ordine di priorità:
 
 ## ⚖️ PRIORITÀ ASSOLUTE
 
-1. **Correttezza calcoli fiscali** (scenari A-I)
+1. **Correttezza calcoli fiscali** (scenari A-J)
 2. **Stabilità schema dati** (no breaking changes senza migration)
 3. **UX velocità** (quick add <5s, dashboard <3s)
 4. **Indipendenza dati** (export sempre disponibile)
@@ -121,5 +126,5 @@ NON fare:
 ## VERSION
 
 ```
-v5.1 — Roadmap 5 sprint MVP, post-MVP prioritizzato
+v5.2 — Sprint 1 = realign code↔docs, sprint successivi su Supabase
 ```

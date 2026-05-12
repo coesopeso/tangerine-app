@@ -1,6 +1,6 @@
-# 🗃 DATA_MODEL — Tangerine PWA v5.1
+# 🗃 DATA_MODEL — Tangerine PWA v5.2
 
-> Schema DB completo. Nomi `snake_case` inglese. Etichette UI italiano. Drizzle + Postgres.
+> Schema DB completo. Nomi `snake_case` inglese. Etichette UI italiano. Postgres su Supabase con Row Level Security per `user_id`.
 
 ---
 
@@ -60,16 +60,16 @@
 | `descrizione` | text | |
 | `lordo` | numeric | |
 | `tipo` | enum | `FATTURA_PIVA` (genera tasse + INPS) / `ENTRATA_PRIVATA` (no tasse, no INPS variabile, no socio). Default `FATTURA_PIVA`. |
-| `stato` | enum | `PROGRAMMATO` / `EMESSO_DA_INCASSARE` / `INCASSATO` |
+| `stato` | enum | `PROGRAMMATO` / `FATTURATO` / `INCASSATO` |
 | `con_socio` | boolean | TRUE se da smezzare con socio. Genera quota socio simulata SOLO se `tipo=FATTURA_PIVA` E `stato=INCASSATO`. Su `ENTRATA_PRIVATA` resta solo etichetta visiva. |
 | `note` | text | |
 | `created_at` | timestamp | |
 
-**Stati**:
-- `PROGRAMMATO` — prevista, non emessa
-- `EMESSO_DA_INCASSARE` — emessa, non pagata
-- `INCASSATO` — pagata. **Solo qui scattano accantonamenti fiscali.**
-- `IN_RITARDO` — calcolato runtime: `EMESSO_DA_INCASSARE` AND `data_scadenza < oggi`. Non salvato.
+**Stati** (3 canonici + 1 derivato):
+- `PROGRAMMATO` — prevista, non emessa. Visibile solo in pianificazione, **nessun effetto fiscale**.
+- `FATTURATO` — emessa, non ancora incassata. **Nessun effetto fiscale** (principio di cassa).
+- `INCASSATO` — pagata. **Solo qui scattano accantonamenti fiscali** (tasse, INPS variabile, quota socio).
+- `IN_RITARDO` — calcolato runtime: `FATTURATO` AND `data_scadenza_pagamento < oggi`. Non salvato.
 
 > **Importante**: accrual fiscali NON salvati per riga. Ricalcolati on-the-fly. Vedi `FISCAL_ENGINE.md`.
 
@@ -225,11 +225,44 @@ Vedi `CALENDAR.md` per dettaglio scadenze pre-popolate.
 
 ---
 
+### `push_subscription` — Subscription Web Push (per device)
+
+Una riga per device che ha concesso il permesso notifiche. Usata dalla Edge Function `notify-scadenze` (vedi `CALENDAR.md`).
+
+| Campo | Tipo | Descrizione |
+|---|---|---|
+| `id` | uuid | PK |
+| `user_id` | uuid (FK auth.users) | RLS owner |
+| `endpoint` | text | URL endpoint push del browser |
+| `p256dh` | text | Chiave pubblica VAPID-style |
+| `auth` | text | Auth secret |
+| `device_label` | text? | Es. "iPhone Augusto" (utile in lista) |
+| `created_at` | timestamp | |
+| `last_seen_at` | timestamp | Aggiornato a ogni login |
+
+UNIQUE su `(user_id, endpoint)`. Endpoint scaduto/410 → riga eliminata.
+
+---
+
+### `auth_pin` — Hash PIN locale (per utente)
+
+Vedi `ARCHITECTURE.md` (sezione Auth) e `API.md` (`auth-pin-setup` / `auth-pin-verify`).
+
+| Campo | Tipo | Descrizione |
+|---|---|---|
+| `user_id` | uuid (PK, FK auth.users) | |
+| `pin_hash` | text | bcrypt cost ≥ 10 |
+| `failed_attempts` | int | Reset a 0 su successo |
+| `locked_until` | timestamp? | Settato dopo 5 fallimenti, +5 min |
+| `updated_at` | timestamp | |
+
+---
+
 ## 🔠 ENUM
 
 ```typescript
 tipo_fattura:     FATTURA_PIVA | ENTRATA_PRIVATA
-stato_fattura:    PROGRAMMATO | EMESSO_DA_INCASSARE | INCASSATO
+stato_fattura:    PROGRAMMATO | FATTURATO | INCASSATO
 tipo_spesa:       EFFETTIVA | PROGRAMMATA
 tipo_inps:        ARTIGIANI | COMMERCIANTI | GESTIONE_SEPARATA
 tipo_investimento: ETF | CRYPTO | AZIONE | OBBLIGAZIONE | ALTRO
@@ -269,5 +302,5 @@ tema:             LIGHT | DARK | AUTO
 ## VERSION
 
 ```
-v5.1 — Modello esteso: clienti, pac_dettaglio con costi, secchielli con target, CRUD totale
+v5.2 — Stati fattura allineati al codice (PROGRAMMATO/FATTURATO/INCASSATO), schema su Supabase con RLS
 ```

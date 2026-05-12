@@ -1,4 +1,4 @@
-# ✅ TASKS — Tangerine PWA v5.1
+# ✅ TASKS — Tangerine PWA v5.2
 
 > Task operativi correnti. Aggiornare ad ogni cambio stato.
 
@@ -35,93 +35,55 @@ TODO | IN_PROGRESS | TESTING | DONE | BLOCKED
 
 **Modifiche**:
 - Stesura `TANGERINE_v5_MASTER.md` v5.1 monolitico
-- Split in `docs/` modulare (questo set)
+- Split in `docs/` modulare
 - Definizione architettura, modello dati, motore fiscale, UX, esempi PAC
 
-**File creati**:
-```
-docs/INDEX.md
-docs/MASTERGUIDE.md
-docs/LLM_RULES.md
-docs/ARCHITECTURE.md
-docs/DATA_MODEL.md
-docs/FISCAL_ENGINE.md
-docs/UX_RULES.md
-docs/API.md
-docs/INVESTMENTS.md
-docs/CALENDAR.md
-docs/MIGRATION.md
-docs/ERROR_HANDBOOK.md
-docs/TESTING.md
-docs/ROADMAP.md
-docs/TASKS.md
-docs/CHANGELOG.md
-```
+---
 
-**Note**: tutto il sistema documentale è pronto. Prossimo step: avvio MVP Sprint 1.
+### TASK-004 (= "Allineamento codice GitHub a docs v5.2")
+
+**Stato**: `IN_PROGRESS`
+**Tipo**: REALIGN CODE ↔ DOCS
+**Data avvio**: 2026-05-12
+**Plan file**: `.local/tasks/realign-code-to-docs-v52.md`
+
+**Obiettivo**: Portare il repo `coesopeso/tangerine-app` in linea con i docs v5.2 (stack Supabase + Vercel + Edge Functions, motore fiscale corretto, PIN auth, wizard onboarding, design Revolut conservato).
+
+**Step**:
+1. ✅ Docs v5.2 (questo allineamento)
+2. ⏳ Configurazione secrets Supabase (`VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`)
+3. ⏳ Migrazione SQL Supabase (~12 tabelle + RLS + seed Augusto)
+4. ⏳ Auth PIN 6-cifre sopra Supabase Auth (anonimo + email upgrade)
+5. ⏳ Refactor `App.tsx` in componenti
+6. ⏳ Wizard onboarding 5 step
+7. ⏳ Motore fiscale corretto (algoritmo `FISCAL_ENGINE.md`)
+8. ⏳ Edge Function `compute-mese`
+9. ⏳ Verifica scenari A-J (in particolare Marzo 2026 Augusto)
+10. ⏳ Deploy Vercel
+
+**Out of scope**: PAC dettaglio, investimenti non-PAC, scadenze fiscali, import CSV, Google Sheets, PWA installabile.
 
 ---
 
-### TASK-001
+### TASK-005 (preview, post realign)
 
 **Stato**: `TODO`
-**Tipo**: SETUP PROGETTO
-**Sprint**: MVP-1
+**Tipo**: FEATURE
+**Sprint**: post-MVP-1
+**Dipende da**: TASK-004
 
-**Obiettivo**: Creare artifact Replit `tangerine-pwa` con stack base funzionante.
-
-**Output atteso**:
-- Hono backend in `artifacts/tangerine-pwa/src/api/`
-- Vite + React frontend in `artifacts/tangerine-pwa/src/`
-- Drizzle config + connessione Postgres Replit
-- Tailwind + shadcn (componenti base) configurati
-- Hello world routing + PIN auth scaffold
-
-**Vincoli**:
-- Nessun tRPC, nessun Wouter, nessun react-hook-form (vedi `LLM_RULES.md`)
-- Inter font caricato
+**Obiettivo**: CRUD `cliente` con vista stats (fatturato YTD, ultima fattura, delta upselling).
 
 ---
 
-### TASK-002
+### TASK-006 (preview)
 
 **Stato**: `TODO`
-**Tipo**: DB SCHEMA
-**Sprint**: MVP-1
-**Dipende da**: TASK-001
+**Tipo**: FEATURE
+**Sprint**: post-MVP-1
+**Dipende da**: TASK-004
 
-**Obiettivo**: Implementare schema DB completo Drizzle.
-
-**File coinvolti**:
-- `artifacts/tangerine-pwa/src/db/schema.ts`
-- `artifacts/tangerine-pwa/src/db/migrations/`
-
-**Output atteso**:
-- Tutte le tabelle di `DATA_MODEL.md` create
-- Enum tipizzati
-- Indici consigliati
-- Migration 0001 applicata
-- Seed con 7 categorie default
-
----
-
-### TASK-003
-
-**Stato**: `TODO`
-**Tipo**: FISCAL ENGINE
-**Sprint**: MVP-2
-**Dipende da**: TASK-002
-
-**Obiettivo**: Implementare `calcolaRiepilogoAnno` + far passare scenari A-I.
-
-**File coinvolti**:
-- `artifacts/tangerine-pwa/src/lib/fiscal/calcolaRiepilogoAnno.ts`
-- `artifacts/tangerine-pwa/src/lib/fiscal/__tests__/`
-
-**Output atteso**:
-- Funzione tipata come da `FISCAL_ENGINE.md`
-- 9 test (A-I) tutti verdi con Vitest
-- Esportata e usabile dagli endpoint dashboard
+**Obiettivo**: Edge Function `conguaglio-socio` + UI per chiusura annuale secchiello `QUOTA_SOCIO`.
 
 ---
 
@@ -153,5 +115,5 @@ docs/CHANGELOG.md
 ## VERSION
 
 ```
-v5.1 — Foundation tasks, ready for MVP Sprint 1
+v5.2 — TASK-004 realign code↔docs in corso, TASK-001..003 v5.1 (Hono/Drizzle) deprecati
 ```

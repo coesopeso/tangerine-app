@@ -1,6 +1,6 @@
-# 🧮 FISCAL_ENGINE — Tangerine PWA v5.1
+# 🧮 FISCAL_ENGINE — Tangerine PWA v5.2
 
-> **Sezione critica.** Mai modificare senza far passare TUTTI gli scenari A-I. Bug del v4 e v5 documentati e corretti.
+> **Sezione critica.** Mai modificare senza far passare TUTTI gli scenari A-J. Bug del v4 e v5 documentati e corretti.
 
 ---
 
@@ -60,7 +60,7 @@ type Profile = {
 type Fattura = {
   data_incasso: Date | null;
   lordo: number;
-  stato: 'PROGRAMMATO' | 'EMESSO_DA_INCASSARE' | 'INCASSATO';
+  stato: 'PROGRAMMATO' | 'FATTURATO' | 'INCASSATO';  // FATTURATO = emessa, non ancora incassata
   tipo: 'FATTURA_PIVA' | 'ENTRATA_PRIVATA';  // ENTRATA_PRIVATA → mai tasse, mai socio
   con_socio: boolean;                          // ignorato se tipo=ENTRATA_PRIVATA
 };
@@ -156,12 +156,12 @@ export function calcolaRiepilogoAnno(
 
 ## 🤝 LOGICA SOCIO — Conguaglio annuale
 
-> Il socio **non è un account**. È una quota di alcune fatture P.IVA che intestiamo al socio "di fatto". Mauri emette fattura intera, incassa intero, ma il 50% è dovuto al socio. Su quel 50% l'app simula la fiscalità che il socio dovrebbe pagare in proprio (Gestione Separata) e la **trattiene in un secchiello dedicato** per restituirla al socio a fine anno con conguaglio.
+> Il socio **non è un account**. È una quota di alcune fatture P.IVA che intestiamo al socio "di fatto". Augusto emette fattura intera, incassa intero, ma il 50% è dovuto al socio. Su quel 50% l'app simula la fiscalità che il socio dovrebbe pagare in proprio (Gestione Separata) e la **trattiene in un secchiello dedicato** per restituirla al socio a fine anno con conguaglio.
 
 ### Regole
 
 1. **Flag per fattura**: `con_socio: boolean` su `fattura`. Settabile su qualsiasi `tipo` (UI non blocca), ma rilevante fiscalmente solo se `tipo=FATTURA_PIVA`.
-2. **Mai su entrate private**: anche se l'utente flagga `con_socio=SI` su un `ENTRATA_PRIVATA`, la simulazione resta 0 (non è reddito fiscalmente rilevante per Mauri, quindi non lo è nemmeno per il socio). Il flag su entrata privata serve solo a marcare visivamente "questa entrata l'ho divisa col socio".
+2. **Mai su entrate private**: anche se l'utente flagga `con_socio=SI` su un `ENTRATA_PRIVATA`, la simulazione resta 0 (non è reddito fiscalmente rilevante per Augusto, quindi non lo è nemmeno per il socio). Il flag su entrata privata serve solo a marcare visivamente "questa entrata l'ho divisa col socio".
 3. **Quota Socio Simulata** (per fattura):
    ```
    quota_socio = lordo × coefficiente × inps_aliquota_socio_simulata
@@ -169,7 +169,7 @@ export function calcolaRiepilogoAnno(
    ```
    Esempio: fattura 250 € con socio → 250 × 0.78 × 0.2607 = **50,84 €** trattenuti.
 4. **Destinazione**: alla creazione/aggiornamento di una fattura `INCASSATO` con `con_socio=true`, l'app crea automaticamente un'`allocazione_secchiello` sul secchiello `QUOTA_SOCIO` di importo `quota_socio_mese`.
-5. **Esclusa dalla zavorra**: la quota socio **non** entra in `Da Accantonare` (che resta solo Tasse + INPS Mauri). È un debito separato verso il socio.
+5. **Esclusa dalla zavorra**: la quota socio **non** entra in `Da Accantonare` (che resta solo Tasse + INPS Augusto). È un debito separato verso il socio.
 6. **Conguaglio fine anno**:
    - L'utente registra in app il totale tasse reali pagate dal socio sulla sua quota
    - Δ = totale_trattenuto − tasse_reali_socio
@@ -188,7 +188,7 @@ export function calcolaRiepilogoAnno(
 
 Ogni implementazione deve passare TUTTI questi scenari. Vedi `TESTING.md` per protocollo esecuzione.
 
-> **Profile di riferimento "Mauri"** usato negli scenari: ARTIGIANI, coeff=0.78, aliquota=0.05, inps_minimale_annuo=18415, inps_fisso_mensile=384.31, inps_aliquota_eccedenza=0.24, inps_aliquota_socio_simulata=0.2607.
+> **Profile di riferimento "Augusto"** usato negli scenari: ARTIGIANI, coeff=0.78, aliquota=0.05, inps_minimale_annuo=18415, inps_fisso_mensile=384.31, inps_aliquota_eccedenza=0.24, inps_aliquota_socio_simulata=0.2607.
 
 ### Scenario A — Artigiani, fattura P.IVA singola, no socio
 - 1 fattura `FATTURA_PIVA` INCASSATO 5000 € a Gennaio, `con_socio=false`
@@ -207,7 +207,7 @@ Ogni implementazione deve passare TUTTI questi scenari. Vedi `TESTING.md` per pr
 - **Atteso a Settembre**: zavorra = 117 + 384.31 + 561.60 = **1062.91**
 
 ### Scenario D — Fattura non incassata = zero accrual
-- 1 fattura `EMESSO_DA_INCASSARE` 10000 €
+- 1 fattura `FATTURATO` 10000 €
 - **Atteso**: incassato=0, tasse=0, inps_eccedenza=0
 - `inps_fisso=384.31` (Artigiani). Tax Safe negativo se nessuna spesa compensata. Quota socio=0 (non incassato).
 
@@ -216,7 +216,7 @@ Ogni implementazione deve passare TUTTI questi scenari. Vedi `TESTING.md` per pr
 - Aggiungo retroattivamente 1 fattura INCASSATA 5000 € a Marzo
 - **Atteso**: tutto il riepilogo da Marzo in poi ricalcolato da zero. Nessuno stato YTD persistito.
 
-### Scenario F — Artigiani, zero incassi a Gennaio (caso reale Mauri 2026)
+### Scenario F — Artigiani, zero incassi a Gennaio (caso reale Augusto 2026)
 - 0 fatture P.IVA INCASSATE a Gennaio
 - **Atteso**: incassato_piva=0, imponibile=0, tasse=0, **inps_fisso=384.31**, inps_eccedenza=0, **zavorra=384.31**
 - Tax Safe Gennaio = `0 − 384.31 − spese − allocazioni` → **NEGATIVO**. È realtà fiscale.
@@ -231,7 +231,7 @@ Ogni implementazione deve passare TUTTI questi scenari. Vedi `TESTING.md` per pr
 - **Atteso**: incassato=0, tasse=0, **inps_fisso=0, inps_eccedenza=0, zavorra=0**
 - Tax Safe = solo spese sottratte. Nessun debito previdenziale (a differenza Artig./Comm.).
 
-### Scenario I — Quota socio simulata (caso reale Mauri Marzo 2026)
+### Scenario I — Quota socio simulata (caso reale Augusto Marzo 2026)
 - ARTIGIANI, profile sopra
 - Fatture INCASSATE Marzo:
   - PIADINA 250 € `FATTURA_PIVA` `con_socio=true`
@@ -280,5 +280,5 @@ Ogni implementazione deve passare TUTTI questi scenari. Vedi `TESTING.md` per pr
 ## VERSION
 
 ```
-v5.1 — Biforcazione Commerciante/GS, INPS fisso sempre, scenari A-I
+v5.2 — Augusto Artigiani 2026, stato FATTURATO, scenari A-J inclusi Marzo Augusto + entrata privata flaggata
 ```
